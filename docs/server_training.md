@@ -42,6 +42,18 @@ bash scripts/train_server.sh --resume outputs/server/cv42
 
 当前已实现并进行工程验证；真实训练由用户在服务器启动。本机合成smoke只验证流程，不产生医学实验结论。
 
+本次基础配置参考ISIC2025后新增Albumentations/tqdm依赖，并更新默认训练增强。服务器升级及直接Python启动示例：
+
+```bash
+git pull --ff-only
+conda activate dlenv
+python -m pip install "albumentations==2.0.8" "tqdm==4.67.1"
+python -m pip check
+python scripts/train_server.py --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --job-dir outputs/server/cv42_isic_aug
+```
+
+数据路径需替换为实际目录。新配置使用新作业目录；已开始的旧作业保持原源码、环境及配置，不在运行中升级或用新源码resume旧checkpoint。增强、DataLoader及参数对照见 [基础配置参考](isic2025_reference.md)。终端显示批次进度条，nohup重定向日志时自动关闭动态进度条，保留每轮学习率、loss、训练/验证Accuracy、验证Macro F1及AMP跳步统计。
+
 ## 官方留出入口
 
 在项目根目录执行：

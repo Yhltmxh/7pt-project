@@ -66,4 +66,62 @@ class PairedImageTransform:
 
 
 def build_transforms(preprocess_config=None, training=False):
+    if (preprocess_config or {}).get("train_augmentation") == "isic2025":
+        return AlbumentationsPairedTransform(preprocess_config, training)
     return PairedImageTransform(preprocess_config, training)
+
+
+class AlbumentationsPairedTransform:
+    """Source-inspired policy; per-call seeds derive from checkpointed Python RNG."""
+
+    def __init__(self, config, training=False):
+        import albumentations as A
+        import cv2
+        from albumentations.pytorch import ToTensorV2
+        if A.__version__ != "2.0.8":
+            raise ValueError("isic2025 augmentation requires albumentations==2.0.8")
+        if config["geometry_coupling"] != "shared" or config["appearance_coupling"] != "shared":
+            raise ValueError("isic2025 augmentation requires shared geometry and appearance")
+        if config["normalization"] != "imagenet" or config["inference_augmentation"] != "none":
+            raise ValueError("Expected ImageNet normalization and deterministic inference")
+        self.training = training
+        self.geometry_coupling = self.appearance_coupling = "shared"
+        size, aug = config["image_size"], config["isic2025"]
+        # Derm7pt modalities can have different sizes. Normalize the canvas before
+        # sharing affine/crop coordinates; this does not imply spatial registration.
+        self.resize = A.Resize(size, size, interpolation=cv2.INTER_LINEAR)
+        operations = []
+        if training:
+            operations.extend([
+                A.HorizontalFlip(p=aug["horizontal_flip_probability"]),
+                A.VerticalFlip(p=aug["vertical_flip_probability"]),
+                A.Affine(translate_percent=aug["translate_percent"], scale=tuple(aug["scale"]),
+                         rotate=aug["rotate"], border_mode=cv2.BORDER_CONSTANT, fill=0,
+                         interpolation=cv2.INTER_LINEAR, p=aug["affine_probability"]),
+                A.RandomResizedCrop(size=(size, size), scale=tuple(aug["crop_scale"]),
+                                    ratio=tuple(aug["crop_ratio"]), interpolation=cv2.INTER_LINEAR,
+                                    p=aug["crop_probability"]),
+                A.RandomBrightnessContrast(brightness_limit=aug["brightness_limit"],
+                                           contrast_limit=aug["contrast_limit"], p=aug["brightness_contrast_probability"]),
+                A.HueSaturationValue(hue_shift_limit=aug["hue_shift_limit"],
+                                     sat_shift_limit=aug["saturation_shift_limit"],
+                                     val_shift_limit=aug["value_shift_limit"], p=aug["hsv_probability"]),
+                A.OneOf([A.GaussianBlur(blur_limit=aug["blur_limit"]),
+                         A.GaussNoise(std_range=tuple(aug["noise_std_range"]))], p=aug["blur_noise_probability"]),
+            ])
+        operations.extend([A.Resize(size, size, interpolation=cv2.INTER_LINEAR),
+                           A.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD), ToTensorV2()])
+        self.pipeline = A.Compose(operations, additional_targets={"image2": "image"}, seed=0, strict=True)
+
+    def __call__(self, images):
+        import numpy as np
+        if not images or set(images) - {"clinical", "dermoscopic"}:
+            raise ValueError("Expected clinical and/or dermoscopic image inputs only")
+        names = [name for name in ("clinical", "dermoscopic") if name in images]
+        # Pre-resize each differently sized image before Compose's shape check.
+        # Use the pipeline's resize operation so training and inference agree.
+        arrays = [self.resize(image=np.array(images[name].convert("RGB")))["image"] for name in names]
+        if self.training:
+            self.pipeline.set_random_seed(random.getrandbits(32))
+        transformed = self.pipeline(image=arrays[0], **({"image2": arrays[1]} if len(names) == 2 else {}))
+        return {name: transformed[key].contiguous() for name, key in zip(names, ("image", "image2"))}

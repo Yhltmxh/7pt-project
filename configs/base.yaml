@@ -26,9 +26,29 @@ preprocess:
   image_size: 224
   normalization: imagenet
   geometry_coupling: shared
-  appearance_coupling: none
-  train_augmentation: flips
+  appearance_coupling: shared
+  train_augmentation: isic2025
   inference_augmentation: none
+  isic2025:
+    horizontal_flip_probability: 0.5
+    vertical_flip_probability: 0.5
+    affine_probability: 0.6
+    translate_percent: 0.05
+    scale: [0.9, 1.1]
+    rotate: 30.0
+    crop_probability: 0.6
+    crop_scale: [0.8, 1.0]
+    crop_ratio: [0.9, 1.1]
+    brightness_contrast_probability: 0.4
+    brightness_limit: 0.2
+    contrast_limit: 0.2
+    hsv_probability: 0.2
+    hue_shift_limit: 5.0
+    saturation_shift_limit: 10.0
+    value_shift_limit: 5.0
+    blur_noise_probability: 0.15
+    blur_limit: 3
+    noise_std_range: [0.01, 0.05]
 
 model:
   modalities: [clinical, dermoscopic]
@@ -75,6 +95,10 @@ train:
   mixed_precision: true
   max_grad_norm: 1.0
   num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: false
+  progress_bar: true
   device: auto
   ema:
     enabled: true

@@ -191,7 +191,10 @@ def make_loader(cfg, partition, generator=None, training=False):
         transform=build_transforms(cfg['preprocess'], training=training), cfg=cfg)
     return torch.utils.data.DataLoader(dataset, batch_size=cfg['train']['batch_size'],
         shuffle=training, num_workers=cfg['train']['num_workers'], generator=generator,
-        worker_init_fn=seed_worker, pin_memory=cfg['train']['device'] != 'cpu')
+        worker_init_fn=seed_worker,
+        pin_memory=cfg['train']['pin_memory'] and cfg['train']['device'] != 'cpu',
+        prefetch_factor=cfg['train']['prefetch_factor'] if cfg['train']['num_workers'] else None,
+        persistent_workers=cfg['train']['persistent_workers'])
 
 
 def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None):
@@ -302,13 +305,16 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
             lr = [group['lr'] for group in optimizer.param_groups]
             losses = train_epoch(model, train_loader, optimizer, criterion, device, scaler, cfg['train'], ema)
             evaluated_model = ema.module if cfg['evaluation']['checkpoint_type'] == 'ema' else model
-            valid_predictions = collect_predictions(evaluated_model, valid_loader, device)
+            valid_predictions = collect_predictions(evaluated_model, valid_loader, device,
+                                                    progress_bar=cfg['train']['progress_bar'])
             metrics = classification_metrics(valid_predictions['logits'], valid_predictions['y_true'])
             history.append({'epoch': epoch + 1, 'loss': losses['total'], 'diagnosis_loss': losses['diagnosis'],
                 'attribute_loss': losses['attributes'], 'backbone_lr': lr[0], 'head_lr': lr[1],
                 'optimizer_updates': losses['optimizer_updates'],
                 'skipped_optimizer_steps': losses['skipped_optimizer_steps'],
                 'valid_checkpoint_type': cfg['evaluation']['checkpoint_type'],
+                'train_accuracy': losses['accuracy'],
+                'valid_accuracy': metrics['accuracy'],
                 'valid_diagnosis_macro_f1': metrics['diagnosis_macro_f1']})
             scheduler.step()
             payload = {'schema_version': 1, 'identity_hash': identity['identity_hash'],
@@ -328,7 +334,10 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
                     if key not in ('optimizer', 'scheduler', 'scaler', 'rng', 'ema')})
             _write_history(run_dir / 'history.csv', history)
             write_json(run_dir / 'status.json', status)
-            print(f"epoch={epoch+1} loss={losses['total']:.6f} valid_macro_f1={metrics['diagnosis_macro_f1']:.6f}", flush=True)
+            print(f"epoch={epoch+1}/{cfg['train']['epochs']} backbone_lr={lr[0]:.2e} head_lr={lr[1]:.2e} "
+                  f"loss={losses['total']:.6f} train_acc={losses['accuracy']:.4f} "
+                  f"valid_acc={metrics['accuracy']:.4f} valid_macro_f1={metrics['diagnosis_macro_f1']:.6f} "
+                  f"updates={losses['optimizer_updates']} amp_skips={losses['skipped_optimizer_steps']}", flush=True)
             if stop_after_epoch is not None and epoch + 1 >= stop_after_epoch and epoch + 1 < cfg['train']['epochs']:
                 status.update(status='interrupted', stage='training', reason='Explicit epoch-boundary stop')
                 write_json(run_dir / 'status.json', status)

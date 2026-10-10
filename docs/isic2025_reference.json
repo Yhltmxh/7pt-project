@@ -1,0 +1,83 @@
+{
+  "verification_date": "2026-10-10",
+  "reference_url": "https://github.com/Yhltmxh/ISIC2025",
+  "read_only": true,
+  "github_snapshot": {
+    "commit": "d902742cc9c378c747ff2a38da915308c5ea6f83",
+    "dirty": false,
+    "files": {
+      "AGENTS.md": "1fc32548fc375882d9b0730aecb2a1fbac3b21d7e5129a39aee978cab2da18c7",
+      "README.md": "84018800ce46056dcd7eb1d0f5287b8a709c2455134da7eb9f32b3f8a7cda05e",
+      "docs/code_structure.md": "2156bc2150a0ee9e830c5dbb7eb5e700d97e051038da7e88c42f47e09c9fce6f",
+      "docs/paper_outline.md": "0a5a7009b3af68a8231b9421dfa1498486d42dfb21fce3d956d1bd33d1a14f95",
+      "src/config.py": "c0fc2497d4715bd730c16152488ba0436f1d4b3cfa44f5a721736b8e37263213",
+      "src/dataset.py": "b70d79a2e42f0d3ffd94c8b64373810c73f7b65728e1b023807361e7ad7a8fc3",
+      "src/train.py": "c17e3238b56b49142ee5720d661b667b6876a56a7fd525178441659b583b20f1",
+      "src/train_utils.py": "6c79cd1b8ead98300b5a6644cc64762318eb6673618639f40fd389c45700be16",
+      "requirements.txt": null
+    }
+  },
+  "local_snapshot": {
+    "commit": "1d11163e77d29d4fb915cb521277d0526a1b238c",
+    "dirty": true,
+    "files": {
+      "AGENTS.md": "30651ed13cd2033e0f095a6824f41ca1e7f33c36b386ef93b4b0086a5b8e47b3",
+      "README.md": "661b181f692e63edd8be2b94276127a017895f33fa9cabd2116f62644b3ffd7e",
+      "docs/code_structure.md": "eb877f67f027d32b28c490dbd2293039bf51fa565285ff54034a19daeb0939bc",
+      "docs/paper_outline.md": "96bb1371eb12ea709fd500ce5e1f9256c67e4d910eb1d94e3867a1b0ba87fae5",
+      "src/config.py": "4a5fc0c7523155f1ebb819e823c45d40b0ca3ba2134642374ce88a3a2c573bae",
+      "src/dataset.py": "00daa82e9ac6404aaf3a3bf1a079594aa603edd57b458ee77fc3883257e64e40",
+      "src/train.py": "33ed6175f82963dc8f11bd329b5b46fdb34db1229848b2f1ba3bab0ecbf066e0",
+      "src/train_utils.py": "01c04f33e7c965d541fe4a1b1fdf1cc299a341a97bff61ae50cae89799e6c5d6",
+      "requirements.txt": "6f2334b365d8f69249907801c7d4edf27b3cb0b37637fcdab07ffc6e52adaee7"
+    }
+  },
+  "applied_preprocess": {
+    "image_size": 224,
+    "normalization": "imagenet",
+    "geometry_coupling": "shared",
+    "appearance_coupling": "shared",
+    "train_augmentation": "isic2025",
+    "inference_augmentation": "none",
+    "isic2025": {
+      "horizontal_flip_probability": 0.5,
+      "vertical_flip_probability": 0.5,
+      "affine_probability": 0.6,
+      "translate_percent": 0.05,
+      "scale": [
+        0.9,
+        1.1
+      ],
+      "rotate": 30.0,
+      "crop_probability": 0.6,
+      "crop_scale": [
+        0.8,
+        1.0
+      ],
+      "crop_ratio": [
+        0.9,
+        1.1
+      ],
+      "brightness_contrast_probability": 0.4,
+      "brightness_limit": 0.2,
+      "contrast_limit": 0.2,
+      "hsv_probability": 0.2,
+      "hue_shift_limit": 5.0,
+      "saturation_shift_limit": 10.0,
+      "value_shift_limit": 5.0,
+      "blur_noise_probability": 0.15,
+      "blur_limit": 3,
+      "noise_std_range": [
+        0.01,
+        0.05
+      ]
+    }
+  },
+  "adaptations": [
+    "Resize each RGB image to common dimensions before shared affine/crop",
+    "Derive per-call Albumentations seed from checkpointed Python RNG",
+    "Preserve Derm7pt seed42/CV5/25 epochs/CE/final EMA/max_grad_norm1 protocol"
+  ],
+  "old_project_training_run": false,
+  "formal_evidence": false
+}

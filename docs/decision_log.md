@@ -12,3 +12,4 @@
 - 2026-10-10：服务器一键入口默认development，五个基线×三种子、25轮、batch1/梯度累积16；这些参数提供可直接运行的开发预算，正式预算仍需独立冻结。每个作业生成独立清单和suite，保留官方分区及原始数据。
 - 显式 `--resume` 先校验计划和身份，完成项校验产物后复用，中断项通过Regular epoch checkpoint恢复。无checkpoint失败不删除重跑；保留原目录并另开作业。未知替代证据不会因一键运行自动成为formal_ready。
 - 2026-10-10：用户指定首轮 training seed42开发五折，并明确在服务器自行启动；先B01/B02/B04共15次。split_seed保持20261004，五折只覆盖官方train＋valid，原索引保留、test封存。配置、目录、checkpoint和预测身份都包含fold；单种子指标从五折pooled OOF计算，折间标准差不充当跨种子标准差。本机仅工程测试和只读数据核验。
+- 2026-10-10：按用户要求参考GitHub ISIC2025基础配置，核验远程commit d902742和本机只读版本1d11163。默认增强改为Albumentations2.0.8共享几何/外观策略，补充加载选项、tqdm与准确率日志；增强强度和概率全部配置化。训练仍为seed42开发五折、25轮、图像CE和末轮EMA，不采用GitHub旧版seed29/50轮/早停/关闭裁剪，不迁移旧任务标签、metadata或MONET。两幅图先分别缩放到共同尺寸，增强seed每次从已checkpoint的Python RNG派生；来源哈希、版本差异及适配边界见isic2025_reference.md/json。

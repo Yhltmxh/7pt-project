@@ -245,6 +245,24 @@ def test_shell_preserves_python_exit_code_and_handles_spaces(tmp_path):
     assert invalid.returncode == 2 and "requires" in invalid.stderr
 
 
+def test_terminal_progress_is_visible_without_polluting_server_log(monkeypatch):
+    import io
+    from src.train_utils import progress_batches
+
+    class Terminal(io.StringIO):
+        def isatty(self):
+            return True
+
+    console, log = Terminal(), io.StringIO()
+    monkeypatch.setattr(sys, 'stderr', launcher._Tee(console, log))
+    assert list(progress_batches([1, 2], 'Training')) == [1, 2]
+    assert 'Training' in console.getvalue() and log.getvalue() == ''
+    console.seek(0)
+    console.truncate()
+    assert list(progress_batches([1], 'Training', enabled=False)) == [1]
+    assert console.getvalue() == '' and log.getvalue() == ''
+
+
 def test_synthetic_server_epoch_recovery_and_verified_collection(tmp_path, monkeypatch):
     """Exercise the real runner/trainer/collector with synthetic data and tiny encoders."""
     import torch

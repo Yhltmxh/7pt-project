@@ -199,6 +199,11 @@ def _environment(settings):
     import numpy  # noqa: F401
     import PIL  # noqa: F401
     import sklearn  # noqa: F401
+    import albumentations
+    import tqdm  # noqa: F401
+    import cv2  # noqa: F401
+    if albumentations.__version__ != '2.0.8':
+        raise RuntimeError('Expected albumentations==2.0.8; install project requirements')
     from src.provenance import environment_info
     device = settings["device"]
     if device == "auto":

@@ -103,10 +103,14 @@ import sklearn
 import torch
 import torchvision
 import yaml
+import albumentations
+import cv2
+import tqdm
 
 variant, record_dir, project, torch_version, vision_version, env_name = sys.argv[1:]
 assert torch.__version__ == f"{torch_version}+{variant}", torch.__version__
 assert torchvision.__version__ == f"{vision_version}+{variant}", torchvision.__version__
+assert albumentations.__version__ == "2.0.8", albumentations.__version__
 if variant == "cpu":
     assert torch.version.cuda is None, "Expected CPU-only PyTorch"
     device = torch.device("cpu")

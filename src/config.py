@@ -228,8 +228,32 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
     _number(pre["image_size"], "preprocess.image_size", positive=True, integer=True)
     _one_of(pre["normalization"], ("imagenet",), "preprocess.normalization")
     _one_of(pre["geometry_coupling"], ("shared", "independent"), "preprocess.geometry_coupling")
-    _one_of(pre["appearance_coupling"], ("none",), "preprocess.appearance_coupling")
-    _one_of(pre["train_augmentation"], ("flips", "none"), "preprocess.train_augmentation")
+    _one_of(pre["appearance_coupling"], ("none", "shared"), "preprocess.appearance_coupling")
+    _one_of(pre["train_augmentation"], ("flips", "none", "isic2025"), "preprocess.train_augmentation")
+    if pre["train_augmentation"] == "isic2025":
+        if pre["geometry_coupling"] != "shared" or pre["appearance_coupling"] != "shared":
+            raise ConfigError("isic2025 augmentation requires shared geometry and appearance")
+    elif pre["appearance_coupling"] != "none":
+        raise ConfigError("flips/none augmentation requires appearance_coupling=none")
+    aug = pre["isic2025"]
+    for field in ("horizontal_flip_probability", "vertical_flip_probability", "affine_probability",
+                  "crop_probability", "brightness_contrast_probability", "hsv_probability", "blur_noise_probability"):
+        _number(aug[field], f"preprocess.isic2025.{field}", minimum=0, maximum=1)
+    for field, upper in (("translate_percent", 1), ("rotate", 180), ("brightness_limit", 1),
+                         ("contrast_limit", 1), ("hue_shift_limit", 180),
+                         ("saturation_shift_limit", 255), ("value_shift_limit", 255)):
+        _number(aug[field], f"preprocess.isic2025.{field}", minimum=0, maximum=upper)
+    for field, upper in (("scale", None), ("crop_scale", 1), ("crop_ratio", None), ("noise_std_range", 1)):
+        values = aug[field]
+        if not isinstance(values, list) or len(values) != 2:
+            raise ConfigError(f"preprocess.isic2025.{field} must be a two-number range")
+        for value in values:
+            _number(value, f"preprocess.isic2025.{field}", positive=field != "noise_std_range", minimum=0, maximum=upper)
+        if values[0] > values[1]:
+            raise ConfigError(f"preprocess.isic2025.{field} must be ordered")
+    _number(aug["blur_limit"], "preprocess.isic2025.blur_limit", integer=True, minimum=3)
+    if aug["blur_limit"] % 2 != 1:
+        raise ConfigError("preprocess.isic2025.blur_limit must be odd")
     _one_of(pre["inference_augmentation"], ("none",), "preprocess.inference_augmentation")
     modalities = model["modalities"]
     if modalities not in (["clinical"], ["dermoscopic"], ["clinical", "dermoscopic"]):
@@ -273,6 +297,11 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
     for field in ("batch_size", "gradient_accumulation"):
         _number(train[field], f"train.{field}", positive=True, integer=True)
     _number(train["num_workers"], "train.num_workers", integer=True, minimum=0)
+    _number(train["prefetch_factor"], "train.prefetch_factor", integer=True, minimum=1)
+    for field in ("pin_memory", "persistent_workers", "progress_bar"):
+        _boolean(train[field], f"train.{field}")
+    if train["persistent_workers"]:
+        raise ConfigError("persistent_workers must remain false for reproducible epoch-boundary recovery")
     _one_of(train["optimizer"], ("adamw",), "train.optimizer")
     for field in ("backbone_learning_rate", "head_learning_rate", "min_learning_rate", "max_grad_norm"):
         _number(train[field], f"train.{field}", positive=True)

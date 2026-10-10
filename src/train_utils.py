@@ -5,11 +5,13 @@ import copy
 import math
 import os
 import random
+import sys
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 
 def set_seed(seed):
@@ -114,20 +116,29 @@ def build_scheduler(optimizer, cfg):
     return torch.optim.lr_scheduler.LambdaLR(optimizer, [schedule(g['lr']) for g in optimizer.param_groups])
 
 
+def progress_batches(loader, description, enabled=True):
+    # The server tees epoch logs to disk. Dynamic bars belong only on its console.
+    stream = getattr(sys.stderr, 'console', sys.stderr)
+    return tqdm(loader, desc=description, leave=False, file=stream,
+                disable=not enabled or not getattr(stream, 'isatty', lambda: False)())
+
+
 def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=None):
     model.train()
     accumulation = cfg['gradient_accumulation']
     optimizer.zero_grad(set_to_none=True)
     totals = {'total': 0., 'diagnosis': 0., 'attributes': 0.}
-    samples = 0
+    samples = correct = 0
     updates = skipped = 0
-    for step, (inputs, targets, _) in enumerate(loader):
+    batches = progress_batches(loader, 'Training', cfg.get('progress_bar', True))
+    for step, (inputs, targets, _) in enumerate(batches):
         inputs, targets = to_device(inputs, device), to_device(targets, device)
         batch_size = len(targets['diagnosis'])
         window_start = (step // accumulation) * accumulation * loader.batch_size
         window_samples = min(accumulation * loader.batch_size, len(loader.dataset) - window_start)
         with torch.autocast(device_type=device.type, enabled=scaler.is_enabled()):
-            losses = criterion(model(**inputs), targets)
+            output = model(**inputs)
+            losses = criterion(output, targets)
             loss = losses['total'] * (batch_size / window_samples)
         if not all(torch.isfinite(value).all() for value in losses.values()):
             raise FloatingPointError('Non-finite loss; stopping without a complete artifact')
@@ -135,6 +146,7 @@ def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=No
         for key in totals:
             totals[key] += float(losses[key].detach()) * batch_size
         samples += batch_size
+        correct += int((output['diagnosis_logits'].detach().argmax(1) == targets['diagnosis']).sum())
         if (step + 1) % accumulation == 0 or step + 1 == len(loader):
             scaler.unscale_(optimizer)
             gradients_finite = all(torch.isfinite(p.grad).all().item()
@@ -156,15 +168,15 @@ def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=No
     if updates == 0:
         raise FloatingPointError('Every optimizer step overflowed; reduce AMP scale or inspect the model')
     return {**{key: value / samples for key, value in totals.items()},
-            'optimizer_updates': updates, 'skipped_optimizer_steps': skipped}
+            'optimizer_updates': updates, 'skipped_optimizer_steps': skipped, 'accuracy': correct / samples}
 
 
 @torch.no_grad()
-def collect_predictions(model, loader, device):
+def collect_predictions(model, loader, device, progress_bar=True):
     from src.evaluation.metrics import softmax
     model.eval()
     logits, labels, sample_ids, lesion_ids, source_rows = [], [], [], [], []
-    for inputs, targets, ids in loader:
+    for inputs, targets, ids in progress_batches(loader, 'Evaluating', progress_bar):
         output = model(**to_device(inputs, device))['diagnosis_logits'].float()
         if not torch.isfinite(output).all():
             raise FloatingPointError('Non-finite prediction logits')

@@ -16,6 +16,8 @@
 
 模型层预留七项分类属性头、masked CE 和 CB Focal 的实现及契约测试；首版配置入口暂时禁止开启，避免把未经实验确认的选项混进基线。已接入开发五折与 pooled OOF；空间交叉注意力、源 V2 迁移、refit、B03 概率融合和候选研究机制列为后续阶段。
 
+基础配置已参考ISIC2025：Pillow读取RGB，Albumentations 2.0.8执行双模态共享几何及外观增强，训练/验证支持tqdm进度条；学习率、AdamW、warmup/cosine、EMA和梯度裁剪保持统一。增强参数全部写入configs/base.yaml；验证只缩放和标准化。来源版本、迁移差异及完整参数对照见 [基础配置参考](docs/isic2025_reference.md)。这组设置是新的开发起点，尚无Derm7pt性能证据。
+
 ## 目录
 
 ```text
@@ -44,6 +46,8 @@ outputs/                 运行计划、smoke及未来研究产物
 bash scripts/setup_conda.sh
 conda activate dlenv
 ```
+
+已安装上一版依赖的环境需补装 `python -m pip install "albumentations==2.0.8" "tqdm==4.67.1"`；Albumentations会安装OpenCV headless等依赖。也可通过安装脚本的 `--reuse` 完成全部依赖及设备检查。
 
 默认环境名dlenv，GPU配置采用本机已核验的Python3.13.9、PyTorch2.9.0/torchvision0.24.0、CUDA13.0 wheel；依赖安装后检查版本、导入及设备前向/反向，并把实际版本与来源哈希记录到outputs。CPU开发环境使用 `bash scripts/setup_conda.sh --name dlenv-cpu --variant cpu`，采用已验证的Python3.12及torch2.8.0/torchvision0.23.0。GPU可选cu126/cu128/cu130，需匹配服务器驱动；已有环境默认拒绝修改，安装失败后可显式加 `--reuse` 重试。完整参数见 `bash scripts/setup_conda.sh --help`。
 

@@ -62,7 +62,8 @@ def git_info():
 
 def environment_info():
     packages = {}
-    for name in ('torch', 'torchvision', 'numpy', 'Pillow', 'PyYAML', 'scikit-learn'):
+    for name in ('torch', 'torchvision', 'numpy', 'Pillow', 'PyYAML', 'scikit-learn',
+                 'albumentations', 'albucore', 'opencv-python-headless', 'tqdm'):
         try:
             packages[name] = version(name)
         except PackageNotFoundError:

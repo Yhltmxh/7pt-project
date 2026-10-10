@@ -60,7 +60,12 @@ def test_preflight_and_loaders_use_fold_training_counts_and_seal_test(cv_cfg):
     assert 'diagnosis' in targets and 'sample_id' in ids
 
 
-def test_fold_training_export_and_exact_resume(cv_cfg, tmp_path):
+@pytest.mark.parametrize('num_workers', [0, 2])
+def test_fold_training_export_and_exact_resume(cv_cfg, tmp_path, num_workers):
+    cv_cfg = apply_overrides(cv_cfg, {'train.num_workers': num_workers})
+    loader = make_loader(cv_cfg, 'train')
+    assert loader.num_workers == num_workers and not loader.persistent_workers
+    assert loader.prefetch_factor == (2 if num_workers else None) and not loader.pin_memory
     full = run_training(cv_cfg, 42, output_dir=tmp_path / 'full')
     resumed = run_training(cv_cfg, 42, output_dir=tmp_path / 'resumed', stop_after_epoch=1)
     checkpoint_path = resumed / 'checkpoints/final_regular.pt'

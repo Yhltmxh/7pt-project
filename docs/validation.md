@@ -112,3 +112,23 @@ GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初�
 完整测试193 passed（`outputs/validation/pytest_missing_yaml.xml`），新增缺包诊断及创建作业前拒绝的回归检查。另用实际空venv通过Bash入口复现缺少yaml，确认退出码2、解释器路径和可执行修复命令，且未创建作业（`outputs/validation/missing_yaml_probe.json`，含入口源码SHA256）。CPU合成smoke通过（`outputs/smoke_missing_yaml_cpu/report.json`）；官方基线dry-run生成15项计划，无test推理（`outputs/validation/baselines_missing_yaml_dry_run.json`）。
 
 验证没有访问用户服务器、向其他项目或既有Windows环境安装软件，也没有启动真实训练。服务器实际解释器、安装完成状态及CUDA可用性须通过服务器上的安装验证和启动日志确认。
+
+## 2026-10-10：参考ISIC2025更新基础配置
+
+只读核验用户指定GitHub仓库的默认分支commit d902742cc9c378c747ff2a38da915308c5ea6f83，以及本机旧项目1d11163版本。来源文件SHA256、远程/本机版本差异和实际配置保存于docs/isic2025_reference.json。旧项目所读文件哈希在完成检查后保持一致。
+
+默认增强接入Albumentations2.0.8，参考旧项目的翻转、Affine、RandomResizedCrop、亮度/对比度、HSV和模糊/噪声；双模态共享几何和外观参数，不宣称图像配准。不同输入尺寸先统一画布，是明确记录的Derm7pt适配。训练每次为Albumentations设置由checkpointed Python RNG派生的seed，persistent_workers保持false。新增显式加载配置、终端tqdm和每轮准确率/学习率/AMP更新统计，环境记录新增依赖版本。原AdamW、warmup/cosine、EMA及裁剪值已核对，保留当前五折25轮/CE/末轮EMA协议。
+
+| 检查 | 结果 | 证据及范围 |
+| --- | --- | --- |
+| 完整测试 | 207 passed | outputs/validation/pytest_isic_reference_final.xml；概率/范围和未知配置拒绝、共享增强、不同尺寸及单模态、验证确定性 |
+| epoch恢复 | 0/2 workers通过 | tests/test_cv_training.py；真实tiny训练，Regular/EMA/history逐项一致，测试各自同一worker数 |
+| 终端与日志 | 通过 | tests/test_server_launcher.py；动态进度条可见且不写入服务器逐轮日志，后台动态条关闭 |
+| 服务器恢复链路 | 通过 | 真实server→runner→tiny trainer→collector；五折中断恢复、OOF和完成折复用 |
+| CPU合成smoke | 通过 | outputs/smoke_isic_reference_final_cpu/report.json；B01/B02/B04和精确恢复 |
+| seed42五折合成smoke | 15次通过 | outputs/smoke_isic_reference_final_cv42/report.json；B01/B02/B04、30例合成数据、tiny编码器、每次2轮，含中断恢复/OOF/完成项复用 |
+| 依赖与计划 | 通过 | pip check；baselines_isic_reference_final_dry_run.json、cv42_isic_reference_final_dry_run.json各15项，未使用test |
+
+CPU验证使用既有隔离venv，并在其中补装Albumentations2.0.8/tqdm4.67.1；完整实际依赖更新到requirements.cpu-tested.lock.txt。2-worker测试通过，但Python3.12报告多线程进程fork的DeprecationWarning；未将其解释为已验证任意平台/worker数。未修改本机旧项目或Windows dlenv，未执行服务器CUDA、真实ConvNeXt训练、真实权重下载或官方test评价。本次增强是开发设置，合成分数不能作为效果证据。
+
+本次最终源码/配置、参考版本、依赖锁及验证产物哈希索引为outputs/validation/isic_reference_validation.json。

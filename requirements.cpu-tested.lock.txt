@@ -1,5 +1,8 @@
-# CPU validation environment; not the Windows CUDA environment.
+# CPU validation environment after ISIC2025 configuration adaptation; not a CUDA lock.
 --extra-index-url https://download.pytorch.org/whl/cpu
+albucore==0.0.24
+albumentations==2.0.8
+annotated-types==0.8.0
 cloudpickle==3.1.2
 filelock==3.32.3
 fsspec==2026.7.0
@@ -11,17 +14,24 @@ mpmath==1.3.0
 narwhals==2.26.0
 networkx==3.6.1
 numpy==2.5.3
+opencv-python-headless==5.0.0.93
 packaging==26.3
 pillow==12.3.0
 pluggy==1.6.0
+pydantic==2.14.0
+pydantic_core==2.50.0
 Pygments==2.21.0
 pytest==9.1.1
 PyYAML==6.0.3
 scikit-learn==1.9.1
 scipy==1.18.1
 setuptools==78.1.0
+simsimd==6.5.16
+stringzilla==5.2.0
 sympy==1.14.0
 threadpoolctl==3.7.0
 torch==2.8.0+cpu
 torchvision==0.23.0+cpu
+tqdm==4.67.1
+typing-inspection==0.4.4
 typing_extensions==4.16.0
