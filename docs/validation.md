@@ -132,3 +132,25 @@ GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初�
 CPU验证使用既有隔离venv，并在其中补装Albumentations2.0.8/tqdm4.67.1；完整实际依赖更新到requirements.cpu-tested.lock.txt。2-worker测试通过，但Python3.12报告多线程进程fork的DeprecationWarning；未将其解释为已验证任意平台/worker数。未修改本机旧项目或Windows dlenv，未执行服务器CUDA、真实ConvNeXt训练、真实权重下载或官方test评价。本次增强是开发设置，合成分数不能作为效果证据。
 
 本次最终源码/配置、参考版本、依赖锁及验证产物哈希索引为outputs/validation/isic_reference_validation.json。
+
+
+## 2026-10-10：项目内数据副本
+
+按用户要求将旧项目数据完整复制到data/derm7pt/，源目录保持只读。2020个文件共163238049字节，副本与复制前后源目录逐文件SHA256一致，完整记录见outputs/validation/dataset_copy.json。Git忽略原始数据，训练示例改用项目内路径；服务器须单独上传数据。未改训练源码或基础配置身份。
+
+副本技术审计通过，1011例，官方train/valid/test为413/203/395，图像解码及文件哈希检查完成，无技术错误。审计另存outputs/validation/dataset_copy_manifests/，保留旧清单；原图、CSV及官方索引未改，唯一文件名大小写差异仅在新清单读取路径中规范化。临床替代状态等证据仍未齐全，formal_ready=false；复制不等于正式实验数据核验完成。
+
+完整测试207 passed（26条Python3.12多线程fork警告，沿用此前平台限制），CPU合成smoke通过，官方基线dry-run和项目内数据路径seed42五折dry-run均生成15项计划。证据分别为outputs/validation/pytest_dataset_copy.xml、outputs/smoke_dataset_copy_cpu/report.json、outputs/validation/baselines_dataset_copy_dry_run.json、outputs/validation/server_dataset_copy_dry_run.log。没有启动真实数据训练、下载权重或进行test性能评价；本轮没有访问服务器。
+
+源码/配置、实际环境及检查产物指纹索引见outputs/validation/dataset_copy_validation.json。
+
+
+## 2026-10-10：相对路径导出脚本
+
+scripts/export_results.sh只使用Bash及Python标准库，自动选择最近完成的服务器作业，支持--job-dir相对路径和--include-checkpoints。压缩包保留项目相对路径，并保存逐文件SHA256清单；原JSON中的历史绝对路径不改写。完成标记与汇总不完整、项目外路径或符号链接时拒绝，不调用训练、推理、collector，不重算实验分数或改写原产物。导出脚本为.sh，src/provenance.py定义的训练源码快照保持一致。
+
+合成打包验证通过：路径含空格、默认排除/显式包含权重、包内路径安全及每个文件SHA256、原文件不变、不完整作业拒绝、自动选择最近完成作业并跳过较新失败作业、不同当前目录启动、绝对CLI路径拒绝。证据为outputs/validation/export_results_probe.json；这是传输工具验证，不是服务器真实实验完整性复核。
+
+此前临时CPU环境已不存在，本轮在/tmp/derm7pt-export-venv重建隔离环境，安装requirements.cpu-tested.lock.txt，pip check通过；没有修改Conda或Windows环境。完整测试207 passed、26条既有Python3.12 fork警告（outputs/validation/pytest_export_results.xml）；CPU合成smoke通过（outputs/smoke_export_results_cpu/report.json）；官方基线dry-run15项通过（outputs/validation/baselines_export_results_dry_run.json）。Bash语法及Git diff检查通过。未访问用户服务器、未启动真实训练或进行test性能评价。
+
+脚本、当前训练源码/配置、环境及验证产物哈希索引见outputs/validation/export_results_validation.json。

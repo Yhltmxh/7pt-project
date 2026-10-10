@@ -1,10 +1,10 @@
 # Derm7pt 数据清单
 
-原始数据根目录由 `dataset.root` 或 `--root` 显式传入，必须包含 `meta/` 和 `images/`。当前配置不自动选用旧项目中的数据。原图不复制、不修改，也不为缺失模态复制另一幅图。
+原始数据根目录由 `dataset.root` 或 `--root` 显式传入，必须包含 `meta/` 和 `images/`。2026-10-10按用户要求将旧项目中的完整数据包复制到本项目的 `data/derm7pt/`，源目录保持只读，逐文件核对SHA256。数据准备程序只生成清单，不修改原图，也不为缺失模态复制另一幅图。该数据副本由Git忽略，服务器须单独上传 `data/derm7pt/`；克隆代码不会取得原始数据。
 
 ```bash
-python scripts/prepare_derm7pt.py --root /path/to/derm7pt --output-dir data/manifests
-python scripts/audit_dataset.py --manifest data/manifests/samples.csv --root /path/to/derm7pt
+python scripts/prepare_derm7pt.py --root data/derm7pt --output-dir data/manifests --normalize-path-case
+python scripts/audit_dataset.py --manifest data/manifests/samples.csv --root data/derm7pt
 ```
 
 如原始 CSV 的大小写拼写与磁盘不同，可在准备时显式追加 `--normalize-path-case`。仅在每段路径均有严格唯一的大小写无关匹配时规范化读取路径；歧义立即报错。`source_clinical_path`、`source_dermoscopic_path` 保留 CSV 原始字符串，审计记录 raw、resolved 和原图 SHA256，重审计再次核对原始引用和唯一匹配。该修复只改变清单读取路径，不改变原图、CSV、官方分区、标签或病例集合。

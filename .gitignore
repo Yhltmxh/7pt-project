@@ -8,6 +8,7 @@ __pycache__/
 outputs/**
 !outputs/.gitkeep
 data/raw/
+data/derm7pt/
 data/manifests/**
 !data/manifests/.gitkeep
 *.pt

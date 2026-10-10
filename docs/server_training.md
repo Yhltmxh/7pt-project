@@ -1,11 +1,17 @@
 # Linux 服务器一键启动开发基线
 
+## 导出分析文件
+
+在项目根目录执行 `bash scripts/export_results.sh`，自动选择最近完成的服务器作业；也可用 `bash scripts/export_results.sh --job-dir outputs/server/<job>` 指定项目相对路径。只依赖Python标准库，默认打包日志、配置、环境、历史曲线、逐折Regular/EMA指标和预测、数据清单、套件汇总及OOF，跳过checkpoint权重；不包含项目外原始图像。压缩包保存在 `outputs/exports/`，内部文件名全部为项目相对路径，原JSON内容及历史绝对路径保持原样，并附文件SHA256清单。
+
+使用 `--include-checkpoints` 可另外打包权重。导出器检查保存的作业、套件、运行及汇总均标记完成，拒绝不完整作业；这不等于重新核验checkpoint、原始数据及训练源码身份。它不调用训练、推理或collector，不修改原作业，也不改变训练源码快照；需要完整复核时保留原权重和数据。
+
 ## 本轮：seed 42 开发五折
 
-在已配置好 CUDA/PyTorch 的服务器项目根目录执行，替换数据路径：
+先将原始数据单独上传到服务器项目的 `data/derm7pt/`（Git不会上传数据），再在已配置好CUDA/PyTorch的服务器项目根目录执行：
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --job-dir outputs/server/cv42
+bash scripts/train_server.sh --data-root data/derm7pt --protocol dev_cv5 --seeds 42 --job-dir outputs/server/cv42
 ```
 
 此模式默认 B01、B02、B04，每个模型训练五折，共15次。训练 seed 为42，固定划分 seed 为20261004；原始官方train＋valid的616例构成开发池，每折训练492或493例、验证123或124例。官方test的395例不分折、不训练、不推理。原始官方索引和清单的official_split字段保留。
@@ -17,8 +23,8 @@ bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seed
 先查看计划或预检：
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --dry-run
-bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --preflight-only
+bash scripts/train_server.sh --data-root data/derm7pt --protocol dev_cv5 --seeds 42 --dry-run
+bash scripts/train_server.sh --data-root data/derm7pt --protocol dev_cv5 --seeds 42 --preflight-only
 ```
 
 开始前确认完整15次运行的存储预算，按每次6 GiB保守预留约90 GiB。若显式加入B05/B06，使用 `--only B01 B02 B04 B05 B06`，计划扩展为25次、保守预算150 GiB。入口只使用已有GPU环境，预检的小运算探针不能代替完整ConvNeXt的显存实测。
@@ -26,7 +32,7 @@ bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seed
 SSH后台一行启动，先执行 `mkdir -p outputs/server`：
 
 ```bash
-nohup bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --python "$(command -v python)" --job-dir outputs/server/cv42 > outputs/server/cv42.launch.log 2>&1 < /dev/null &
+nohup bash scripts/train_server.sh --data-root data/derm7pt --protocol dev_cv5 --seeds 42 --python "$(command -v python)" --job-dir outputs/server/cv42 > outputs/server/cv42.launch.log 2>&1 < /dev/null &
 ```
 
 查看日志和恢复：
@@ -49,20 +55,20 @@ git pull --ff-only
 conda activate dlenv
 python -m pip install "albumentations==2.0.8" "tqdm==4.67.1"
 python -m pip check
-python scripts/train_server.py --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --job-dir outputs/server/cv42_isic_aug
+python scripts/train_server.py --data-root data/derm7pt --protocol dev_cv5 --seeds 42 --job-dir outputs/server/cv42_isic_aug
 ```
 
-数据路径需替换为实际目录。新配置使用新作业目录；已开始的旧作业保持原源码、环境及配置，不在运行中升级或用新源码resume旧checkpoint。增强、DataLoader及参数对照见 [基础配置参考](isic2025_reference.md)。终端显示批次进度条，nohup重定向日志时自动关闭动态进度条，保留每轮学习率、loss、训练/验证Accuracy、验证Macro F1及AMP跳步统计。
+以上使用项目内的 `data/derm7pt/`；若另行存放，需替换为实际目录。新配置使用新作业目录；已开始的旧作业保持原源码、环境及配置，不在运行中升级或用新源码resume旧checkpoint。增强、DataLoader及参数对照见 [基础配置参考](isic2025_reference.md)。终端显示批次进度条，nohup重定向日志时自动关闭动态进度条，保留每轮学习率、loss、训练/验证Accuracy、验证Macro F1及AMP跳步统计。
 
 ## 官方留出入口
 
 在项目根目录执行：
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt
+bash scripts/train_server.sh --data-root data/derm7pt
 ```
 
-`/data/derm7pt` 是示例路径，替换为服务器上的数据目录；该目录必须包含 `meta/meta.csv`、三个官方分区索引和 `images/`。入口会准备独立数据清单、展开计划并预检，再按顺序训练 B01、B02、B04、B05、B06，每个基线使用 101、3407、777 三个种子，共 15 次运行。
+`data/derm7pt` 指项目内的数据副本，服务器需单独上传；也可替换为其他数据目录。该目录必须包含 `meta/meta.csv`、三个官方分区索引和 `images/`。入口会准备独立数据清单、展开计划并预检，再按顺序训练 B01、B02、B04、B05、B06，每个基线使用 101、3407、777 三个种子，共 15 次运行。
 
 默认预算为 **25 epochs 的开发训练**，不是已冻结的论文实验。输入仅为图像，使用 CE、末轮 EMA 和官方 train/valid；不会启动 test 评价。五类顺序为 BCC、NEV、MEL、MISC、SK。临床替代策略采用 `retain_official`，保留发布包内容与 unknown 状态；该选择不证明病例都具有真实完整双模态。唯一的路径大小写差异会显式规范化，原始引用、修复事件和哈希保留，原始 CSV、图像及官方分区不改。
 
@@ -117,7 +123,7 @@ python -c 'import torch, torchvision; print(torch.__version__, torchvision.__ver
 默认调用当前环境的 `python3`，默认设备为 `cuda`。可用 `--python /path/to/python` 或 `DERM7PT_PYTHON` 指定解释器；`--data-root` 或 `DERM7PT_ROOT` 指定数据根目录。显式命令参数优先于环境变量。例如：
 
 ```bash
-DERM7PT_PYTHON="$PWD/.venv/bin/python" DERM7PT_ROOT=/data/derm7pt bash scripts/train_server.sh --preflight-only
+DERM7PT_PYTHON="$PWD/.venv/bin/python" DERM7PT_ROOT=data/derm7pt bash scripts/train_server.sh --preflight-only
 ```
 
 若报 `No module named 'yaml'`，当前训练解释器没有PyYAML；requirements.txt已声明该依赖，通常需要完成安装或选中正确环境。启动日志会打印实际Python路径。先在项目目录执行，并将数据路径替换为服务器实际路径：
@@ -126,7 +132,7 @@ DERM7PT_PYTHON="$PWD/.venv/bin/python" DERM7PT_ROOT=/data/derm7pt bash scripts/t
 conda activate dlenv
 python -m pip install "PyYAML>=6,<7"
 python -c 'import sys, yaml; print(sys.executable); print("PyYAML:", yaml.__version__)'
-bash scripts/train_server.sh --python "$(command -v python)" --data-root /data/derm7pt --protocol dev_cv5 --seeds 42
+bash scripts/train_server.sh --python "$(command -v python)" --data-root data/derm7pt --protocol dev_cv5 --seeds 42
 ```
 
 使用 `python -m pip` 可保证安装到训练所选解释器。若安装脚本此前未成功完成，执行 `bash scripts/setup_conda.sh --reuse` 补全项目依赖并完成设备验证；单独补PyYAML只解决当前缺包错误。遇到其他缺包或CUDA错误时按实际报错修复，不宣称安装已完成。
@@ -134,8 +140,8 @@ bash scripts/train_server.sh --python "$(command -v python)" --data-root /data/d
 ## 先看计划，再做预检
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt --dry-run
-bash scripts/train_server.sh --data-root /data/derm7pt --preflight-only
+bash scripts/train_server.sh --data-root data/derm7pt --dry-run
+bash scripts/train_server.sh --data-root data/derm7pt --preflight-only
 ```
 
 `--dry-run` 展开参数和运行清单；`--preflight-only` 准备并核对数据、环境、设备、缓存和存储，均不开始训练。ConvNeXt 预训练权重在真正训练时会按需下载；预检只报告缓存情况，不自动下载。离线运行添加 `--offline`，所需缓存缺失时拒绝启动。应在服务器当前 Python 使用的缓存目录提前准备相同预训练权重。
@@ -153,7 +159,7 @@ mkdir -p outputs/server
 以下是一行后台启动命令；断开 SSH 后仍保留进程和日志：
 
 ```bash
-nohup bash scripts/train_server.sh --data-root /data/derm7pt --python "$(command -v python)" --job-dir outputs/server/baseline_dev25 > outputs/server/baseline_dev25.launch.log 2>&1 < /dev/null &
+nohup bash scripts/train_server.sh --data-root data/derm7pt --python "$(command -v python)" --job-dir outputs/server/baseline_dev25 > outputs/server/baseline_dev25.launch.log 2>&1 < /dev/null &
 ```
 
 查看启动、预检与训练进度：
@@ -177,13 +183,13 @@ tail -f outputs/server/baseline_dev25/train.log
 先只跑双模态 mean 的一个种子：
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt --only B04 --seeds 101 --job-dir outputs/server/b04_seed101
+bash scripts/train_server.sh --data-root data/derm7pt --only B04 --seeds 101 --job-dir outputs/server/b04_seed101
 ```
 
 显式选择两个基线、两个种子和预算：
 
 ```bash
-bash scripts/train_server.sh --data-root /data/derm7pt --only B04 B05 --seeds 101 3407 --epochs 25 --warmup-epochs 5 --batch-size 1 --gradient-accumulation 16 --num-workers 4 --device cuda --job-dir outputs/server/mean_concat_dev25
+bash scripts/train_server.sh --data-root data/derm7pt --only B04 B05 --seeds 101 3407 --epochs 25 --warmup-epochs 5 --batch-size 1 --gradient-accumulation 16 --num-workers 4 --device cuda --job-dir outputs/server/mean_concat_dev25
 ```
 
 此例每次迭代处理 1 个样本，累计 16 次梯度后更新权重；完整累计区间的有效 batch 为 16，最后不足区间按实际样本处理。`--device cpu` 可明确使用 CPU，`--device auto` 由实际可用设备决定；调整设备和预算属于新的运行身份。
