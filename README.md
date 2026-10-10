@@ -47,6 +47,8 @@ conda activate dlenv
 
 默认环境名dlenv，GPU配置采用本机已核验的Python3.13.9、PyTorch2.9.0/torchvision0.24.0、CUDA13.0 wheel；依赖安装后检查版本、导入及设备前向/反向，并把实际版本与来源哈希记录到outputs。CPU开发环境使用 `bash scripts/setup_conda.sh --name dlenv-cpu --variant cpu`，采用已验证的Python3.12及torch2.8.0/torchvision0.23.0。GPU可选cu126/cu128/cu130，需匹配服务器驱动；已有环境默认拒绝修改，安装失败后可显式加 `--reuse` 重试。完整参数见 `bash scripts/setup_conda.sh --help`。
 
+创建环境时仅使用conda-forge（`--override-channels`），不回退到要求接受条款的Anaconda默认源；不修改全局Conda源配置。PyTorch仍从官方wheel源安装。若旧脚本报 `CondaToSNonInteractiveError`，执行 `git pull --ff-only` 后重新运行安装脚本。
+
 也可使用venv：
 
 ```bash

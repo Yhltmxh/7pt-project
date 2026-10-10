@@ -22,6 +22,7 @@ GPU: Python 3.13.9, torch 2.9.0 / torchvision 0.24.0 (matches local dlenv).
 CPU: Python 3.12, torch 2.8.0 / torchvision 0.23.0 (validated CPU stack).
 Installs requirements.txt and checks imports, dependencies and device operations.
 Requires an existing Conda installation; does not install NVIDIA drivers.
+Creates Python/pip using only conda-forge; leaves global Conda channels unchanged.
 HELP
 }
 die() { printf 'error: %s\n' "$*" >&2; exit 2; }
@@ -48,10 +49,13 @@ esac
 cd -- "$project_dir"
 index_url="https://download.pytorch.org/whl/$variant"
 runner=("$conda_bin" run --no-capture-output --name "$env_name")
+# A channel alone still falls back to defaults; override avoids Anaconda ToS channels.
+create_command=("$conda_bin" create --yes --override-channels
+    --channel https://conda.anaconda.org/conda-forge --name "$env_name" "python=$python_spec" pip)
 if $dry_run; then
     printf 'Environment: %s; Python %s; PyTorch %s / torchvision %s (%s)\n' "$env_name" "$python_spec" "$torch_version" "$vision_version" "$variant"
     if ! $reuse; then
-        printf '%q ' "$conda_bin" create --yes --name "$env_name" "python=$python_spec" pip
+        printf '%q ' "${create_command[@]}"
         printf '\n'
     fi
     printf '%q ' "${runner[@]}" python -m pip install "torch==$torch_version+$variant" "torchvision==$vision_version+$variant" --index-url "$index_url"
@@ -74,7 +78,7 @@ if [[ "$exists" == yes ]]; then
     $reuse || die "Environment '$env_name' exists; choose --name NEW_NAME or explicitly --reuse"
 else
     $reuse && die "Environment '$env_name' does not exist; omit --reuse to create it"
-    "$conda_bin" create --yes --name "$env_name" "python=$python_spec" pip
+    "${create_command[@]}"
 fi
 "${runner[@]}" python -c 'import sys; assert ".".join(map(str, sys.version_info[:2])) == sys.argv[1], "Python " + sys.argv[1] + " required; choose a new environment"' "$python_minor"
 mkdir -p -- "$project_dir/outputs"

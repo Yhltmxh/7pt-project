@@ -96,3 +96,11 @@ GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初�
 本机原Windows dlenv没有pytest，因此原样执行完整安装后验证片段在pytest导入处拒绝；未向该环境安装软件。GPU运算复查只省略该导入，执行代码SHA256及边界在上述报告中单独记录。安装脚本先安装项目requirements（包含pytest），再执行完整导入和运算检查。
 
 本轮没有实际执行Conda环境创建、网络wheel安装或服务器Linux CUDA检查，本机既有Windows环境未改动；Conda/pip路由测试不证明真实下载安装成功。服务器执行脚本后的验证与environment.json才记录实际安装结果。GPU小探针不代表完整ConvNeXt显存、训练稳定性或医学性能验证。
+
+## 2026-10-10：Conda默认源条款报错修复
+
+针对服务器反馈的 `CondaToSNonInteractiveError`，安装脚本创建环境时改为仅使用conda-forge，显式传入 `--override-channels` 和完整channel URL。dry-run与实际创建共用同一命令；不回退到Anaconda默认源，不更改全局源配置，也不执行条款接受命令。Python、PyTorch/CUDA版本及环境名保持原定配置。
+
+完整测试192 passed（`outputs/validation/pytest_conda_tos.xml`）；13项安装入口检查包含模拟默认源未接受条款时的创建行为，实际CPU运算探针继续通过。CPU合成smoke通过（`outputs/smoke_conda_tos_cpu/report.json`）；官方基线dry-run生成15项计划且未启用test推理（`outputs/validation/baselines_conda_tos_dry_run.json`）；Bash语法及Git diff检查通过。
+
+上述验证使用已有隔离CPU环境和mock Conda/pip，不代表已在服务器完成真实Conda下载安装。服务器执行更新后的脚本会生成实际版本及脚本/requirements SHA256报告；本轮没有启动真实训练或修改其他项目环境。

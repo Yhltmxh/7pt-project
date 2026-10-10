@@ -65,6 +65,18 @@ conda activate dlenv
 
 脚本默认创建名为dlenv的独立Python3.13.9环境，安装PyTorch2.9.0/torchvision0.24.0的CUDA13.0 wheel，再安装requirements.txt中的其他依赖；使用constraints避免第二次依赖解析切换torch版本或CPU/GPU构建。该组GPU版本来自本机Windows dlenv的只读实时核验（2026-10-10）；Linux wheel配对与源依据[PyTorch官方安装表](https://pytorch.org/get-started/previous-versions/#v290)。Conda负责环境与Python，PyTorch在该环境中用pip安装。
 
+创建Python/pip时使用 `--override-channels --channel https://conda.anaconda.org/conda-forge`，仅搜索conda-forge，不回退到默认的pkgs/main、pkgs/r，也不修改全局`.condarc`或自动接受条款。仅添加 `-c conda-forge` 仍会搜索默认源，参数含义见[Conda官方说明](https://docs.conda.io/projects/conda/en/latest/commands/create.html#channel-customization)。
+
+旧脚本在创建环境前报 `CondaToSNonInteractiveError` 时，在项目目录更新并重试：
+
+```bash
+git pull --ff-only
+bash scripts/setup_conda.sh
+conda activate dlenv
+```
+
+如果dlenv已经创建，按下方说明显式使用 `--reuse`。
+
 其他构建、查看计划和失败后重试：
 
 ```bash

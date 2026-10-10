@@ -33,6 +33,9 @@ if args == ['info', '--base']:
 elif args == ['env', 'list', '--json']:
     print(json.dumps({'envs': [str(base / 'envs/dlenv')] if (base / 'exists').exists() else []}))
 elif args[0] == 'create':
+    if '--override-channels' not in args or '--channel' not in args or args[args.index('--channel') + 1] != 'https://conda.anaconda.org/conda-forge':
+        print('CondaToSNonInteractiveError: default Anaconda channels require acceptance', file=sys.stderr)
+        sys.exit(2)
     (base / 'exists').touch()
 elif args[0] == 'run':
     command = args[4:]
@@ -69,7 +72,20 @@ def test_default_dlenv_dry_run_needs_no_conda(setup):
     assert result.returncode == 0 and not calls and not (project / "outputs").exists()
     assert "Environment: dlenv" in result.stdout
     assert "Python 3.13.9" in result.stdout
+    assert "--override-channels --channel https://conda.anaconda.org/conda-forge" in result.stdout
     assert "torch==2.9.0+cu130" in result.stdout and "torchvision==0.24.0+cu130" in result.stdout
+
+
+def test_default_creation_bypasses_unaccepted_default_channel_terms(setup):
+    project, base, env, run = setup
+    # Stop after creation so this regression check needs no GPU wheels or downloads.
+    env["SETUP_TEST_BAD_PYTHON"] = "1"
+    result, calls = run()
+    assert result.returncode == 2 and "CondaToSNonInteractiveError" not in result.stderr
+    assert (base / "exists").exists()
+    assert any(c[0] == "create" for c in calls)
+    assert not any("pip" in c and c[0] == "run" for c in calls)
+    assert not (project / "outputs").exists()
 
 
 @pytest.mark.parametrize("args", [("--name", "base"), ("--name", "root"),
