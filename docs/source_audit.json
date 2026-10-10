@@ -1,0 +1,82 @@
+{
+  "source_root": "/mnt/d/DeepLearning/code/ISIC2025",
+  "verification_date": "2026-10-04",
+  "read_only": true,
+  "git_revision": "1d11163e77d29d4fb915cb521277d0526a1b238c",
+  "git_dirty": true,
+  "files": {
+    "AGENTS.md": "30651ed13cd2033e0f095a6824f41ca1e7f33c36b386ef93b4b0086a5b8e47b3",
+    "README.md": "661b181f692e63edd8be2b94276127a017895f33fa9cabd2116f62644b3ffd7e",
+    "docs/code_structure.md": "eb877f67f027d32b28c490dbd2293039bf51fa565285ff54034a19daeb0939bc",
+    "docs/paper_outline.md": "96bb1371eb12ea709fd500ce5e1f9256c67e4d910eb1d94e3867a1b0ba87fae5",
+    "src/config.py": "4a5fc0c7523155f1ebb819e823c45d40b0ca3ba2134642374ce88a3a2c573bae",
+    "src/model.py": "b39a3dbdfd4bcc1274682f87bed1f3b3d26ec02d4cd5a5b4e084ef0b3ad763cc",
+    "src/dataset.py": "00daa82e9ac6404aaf3a3bf1a079594aa603edd57b458ee77fc3883257e64e40",
+    "src/data_utils.py": "fbe36440813528eaaff70f1c09eb490e392d1feb67a36f3b50ca513d8d5415c3",
+    "src/train.py": "33ed6175f82963dc8f11bd329b5b46fdb34db1229848b2f1ba3bab0ecbf066e0",
+    "src/train_utils.py": "01c04f33e7c965d541fe4a1b1fdf1cc299a341a97bff61ae50cae89799e6c5d6",
+    "src/loss.py": "3f1e3a4d4aef3a0235a17038da533d85e2e57ff493fb7658a164e0c0c51b2e5f",
+    "src/infer.py": "ca700ca06569dfeb9e4d9379b915a02f0e968e78c40b8e7d3b7bde004019a268",
+    "scripts/run_formal_paper_experiments.py": "4cf3046172f1c798861bd720aa3688ffb49d0a8e4720309f0b2248be47bcbf1b"
+  },
+  "handoff_hashes_match": true,
+  "reuse": "Concepts and independently rewritten interfaces; no old weights/labels/metadata copied",
+  "runtime_verification": "Old project training not run",
+  "handoff_comparison": {
+    "src/config.py": {
+      "expected": "4a5fc0c7523155f1ebb819e823c45d40b0ca3ba2134642374ce88a3a2c573bae",
+      "actual": "4a5fc0c7523155f1ebb819e823c45d40b0ca3ba2134642374ce88a3a2c573bae",
+      "matches": true
+    },
+    "src/model.py": {
+      "expected": "b39a3dbdfd4bcc1274682f87bed1f3b3d26ec02d4cd5a5b4e084ef0b3ad763cc",
+      "actual": "b39a3dbdfd4bcc1274682f87bed1f3b3d26ec02d4cd5a5b4e084ef0b3ad763cc",
+      "matches": true
+    },
+    "src/dataset.py": {
+      "expected": "00daa82e9ac6404aaf3a3bf1a079594aa603edd57b458ee77fc3883257e64e40",
+      "actual": "00daa82e9ac6404aaf3a3bf1a079594aa603edd57b458ee77fc3883257e64e40",
+      "matches": true
+    },
+    "src/train.py": {
+      "expected": "33ed6175f82963dc8f11bd329b5b46fdb34db1229848b2f1ba3bab0ecbf066e0",
+      "actual": "33ed6175f82963dc8f11bd329b5b46fdb34db1229848b2f1ba3bab0ecbf066e0",
+      "matches": true
+    },
+    "docs/code_structure.md": {
+      "expected": "eb877f67f027d32b28c490dbd2293039bf51fa565285ff54034a19daeb0939bc",
+      "actual": "eb877f67f027d32b28c490dbd2293039bf51fa565285ff54034a19daeb0939bc",
+      "matches": true
+    },
+    "src/data_utils.py": {
+      "expected": "fbe36440813528eaaff70f1c09eb490e392d1feb67a36f3b50ca513d8d5415c3",
+      "actual": "fbe36440813528eaaff70f1c09eb490e392d1feb67a36f3b50ca513d8d5415c3",
+      "matches": true
+    },
+    "src/train_utils.py": {
+      "expected": "01c04f33e7c965d541fe4a1b1fdf1cc299a341a97bff61ae50cae89799e6c5d6",
+      "actual": "01c04f33e7c965d541fe4a1b1fdf1cc299a341a97bff61ae50cae89799e6c5d6",
+      "matches": true
+    },
+    "src/loss.py": {
+      "expected": "3f1e3a4d4aef3a0235a17038da533d85e2e57ff493fb7658a164e0c0c51b2e5f",
+      "actual": "3f1e3a4d4aef3a0235a17038da533d85e2e57ff493fb7658a164e0c0c51b2e5f",
+      "matches": true
+    },
+    "src/infer.py": {
+      "expected": "ca700ca06569dfeb9e4d9379b915a02f0e968e78c40b8e7d3b7bde004019a268",
+      "actual": "ca700ca06569dfeb9e4d9379b915a02f0e968e78c40b8e7d3b7bde004019a268",
+      "matches": true
+    },
+    "scripts/run_formal_paper_experiments.py": {
+      "expected": "4cf3046172f1c798861bd720aa3688ffb49d0a8e4720309f0b2248be47bcbf1b",
+      "actual": "4cf3046172f1c798861bd720aa3688ffb49d0a8e4720309f0b2248be47bcbf1b",
+      "matches": true
+    },
+    "README.md": {
+      "expected": "661b181f692e63edd8be2b94276127a017895f33fa9cabd2116f62644b3ffd7e",
+      "actual": "661b181f692e63edd8be2b94276127a017895f33fa9cabd2116f62644b3ffd7e",
+      "matches": true
+    }
+  }
+}

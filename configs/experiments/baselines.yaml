@@ -1,0 +1,28 @@
+# Implemented image baselines only. B03 is a future analysis, B07/B08 are future models.
+suite_id: derm7pt_baseline_v1
+base_config: configs/base.yaml
+protocol_config: configs/protocols/official_holdout.yaml
+seeds: [101, 3407, 777]
+experiments:
+  - id: B01
+    parent: base
+    overrides:
+      model.modalities: [clinical]
+      model.fusion: single
+  - id: B02
+    parent: base
+    overrides:
+      model.modalities: [dermoscopic]
+      model.fusion: single
+  - id: B04
+    parent: base
+    overrides:
+      model.fusion: mean
+  - id: B05
+    parent: B04
+    overrides:
+      model.fusion: concat
+  - id: B06
+    parent: B04
+    overrides:
+      model.fusion: gated

@@ -1,0 +1,81 @@
+# 开发验收记录
+
+日期：2026-10-04。以下是本轮实际执行的验证，不包含真实数据训练性能。
+
+| 检查 | 结果 | 证据/边界 |
+| --- | --- | --- |
+| 完整契约测试 | 66 passed | outputs/validation/pytest.xml |
+| WSL CPU全流程 | 通过 | outputs/smoke_cpu/report.json；合成图像及tiny encoder |
+| Windows CUDA全流程 | 通过 | outputs/smoke_gpu/report.json；合成图像、RTX5060 Laptop |
+| 实际ConvNeXt-Base临床分支 | CPU前向/反向通过 | 输入[1,3,64,64]，feature1024、token[1,4,1024]、诊断[1,5]，全部编码器梯度有限 |
+| 实际双ConvNeXt-Base mean | CUDA前向/反向通过 | outputs/validation/convnext_gpu.json；两路[1,3,64,64]，logits[1,5]，全部编码器梯度有限；未加载预训练权重 |
+| 候选真实数据batch | 通过 | clinical/dermoscopic[2,3,224,224]，mask[2,2]，diagnosis int64 |
+| 草稿suite dry run | 15项计划通过 | B01/B02/B04/B05/B06，各101/3407/777；未训练 |
+| 候选数据开发preflight | 通过 | outputs/validation/preflight.json；仅内存设置root/budget，未改配置 |
+| 未就绪数据正式preflight | 正确拒绝 | 替代身份未解决，formal_ready=false |
+| train/infer/prepare/audit/runner/collector --help | 通过 | 确认实际CLI入口 |
+
+CPU验证环境：临时隔离目录 `/tmp/derm7pt-baseline-venv`，Python3.12.3、torch2.8.0+cpu、torchvision0.23.0+cpu。完整版本记录见 requirements.cpu-tested.lock.txt 和 smoke report；基础项目安装说明见README。
+
+GPU验证调用既有 Windows dlenv 的 Python3.13.9、torch2.9.0+cu130、torchvision0.24.0+cu130；未安装、升级或改动该环境。WSL默认Python起初不含PyTorch，因此CPU依赖只安装在新建的临时venv。两个环境的恢复验证分别在各自环境内执行，不宣称跨环境得到相同权重。
+
+合成全流程实际训练B01、B02、B04，各2轮。核对Regular/EMA、病例级NPZ、固定五类指标、重新加载EMA后的逐项相同预测、epoch1中断再恢复与不中断epoch2的逐张量相同权重、EMA更新次数和history。包含最后一个不满批次及不满梯度累积窗口。错误配置恢复在写入前被拒绝，旧status/config保持原字节；开发test推理被拒绝。
+
+GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初始scale1024，unscale后检查梯度，溢出由GradScaler跳过optimizer，同时不更新EMA；记录跳步次数；整轮没有有效更新时拒绝完成。专门测试注入一次有限loss但无限gradient，确认跳步后能恢复、EMA只更新一次、权重保持有限。正式训练仍需按目标GPU、224图像和batch预算实测资源。
+
+数据候选审计：1011病例，413/203/395；2022图像引用，2013唯一文件，全部解码。无缺失、解码失败或跨分区精确重复。case816唯一目录大小写错误仅在规范化清单中显式修复，源引用和哈希保留，原始CSV/图像未变。9例双模态引用同文件，替代身份仍unknown，正式准备状态待核验；近重复搜索与患者身份未验证。
+
+尚未执行：实际Derm7pt训练、预训练权重下载及缓存校验、224/batch16下双ConvNeXt完整训练的显存验证、完整三种子套件、官方test评价、CV/refit、研究机制和论文性能分析。当前产物只能证明工程流程已跑通。
+
+## 2026-10-10：服务器一键入口
+
+新增 `scripts/train_server.sh` / `train_server.py`，串联独立作业配置、环境运算探针、全套存储预算、数据准备、已有 runner 的预检和训练、产物校验与结果汇总。未创建第二套训练器。默认 development、25 epochs、batch 1、gradient accumulation 16、CUDA；五个基线和三个配对种子构成15项计划。这些是可调整的开发起点，不能作为已冻结的实验设置。
+
+| 检查 | 结果 | 证据/边界 |
+| --- | --- | --- |
+| 完整测试 | 94 passed | outputs/validation/pytest_server.xml；含原有66项和新增28项 |
+| 独立 CPU smoke | 通过 | outputs/smoke_server_cpu/report.json；合成图像、tiny encoder |
+| 服务器一键恢复链路 | 通过 | tests/test_server_launcher.py；合成20例、B04/tiny、2轮，一轮后中断再恢复，真实 runner/train/collector |
+| 已完成运行复用 | 通过 | 同一合成服务器作业再次启动；校验后不重训，Regular SHA256保持相同 |
+| 失败和身份漂移 | 正确拒绝 | tests/test_server_resume.py；无checkpoint、配置/种子/源码/原始数据变化、完整产物篡改；mock trainer，原产物字节保留 |
+| dry run 无ML依赖 | 通过 | 子进程禁止导入 torch/torchvision/Pillow/sklearn，数据路径不存在仍可生成计划 |
+| 设备运算与缓存 | CPU探针通过 | 小Conv2d前向/反向/optimizer，RNG保持；缓存缺失/损坏/有效哈希及独立磁盘预算使用测试夹具，未下载真实权重 |
+| 官方草稿suite计划 | 15项通过 | outputs/validation/baselines_server_dry_run.json；未训练 |
+| 服务器完整计划 | 15项通过 | outputs/server/server_full_plan_validation/job.json 所指plan；默认开发参数，未读数据、未训练 |
+| 候选真实数据服务器预检 | 通过 | outputs/server/server_cpu_preflight_validation/preflight.json；1011病例及413/203/395官方分区，B04/seed101/CPU，仅检查；formal_ready=false |
+| Bash入口 | 通过 | 语法、--help、带空格解释器及原退出码传递 |
+
+本轮CPU环境为隔离的 `/tmp/derm7pt-server-venv`，按照已有 `requirements.cpu-tested.lock.txt` 安装。未改动 ISIC2025 项目或 Windows dlenv 环境。服务器套件恢复验证与单项恢复均限同环境下的 epoch 边界；没有承诺中间 batch 或跨环境精确恢复。
+
+真实候选数据预检通过服务器Bash入口执行，显式指定旧项目中的候选数据根目录，只读解码和哈希，清单写入本作业的data目录。原始文件和原有data/manifests未改动；运行目录没有训练checkpoint或病例预测。ConvNeXt真实缓存当前缺失，预检记录available=false并保留训练时下载步骤，未报告真实缓存校验已完成。
+
+尚未验证服务器CUDA完整基线训练、真实权重下载成功、双ConvNeXt在224输入下的目标batch容量、真实耗时或模型性能。真实权重缓存API已在已安装torchvision中核对，完整SHA256及URL哈希前缀的运行校验由入口执行。当前小运算探针不代表完整模型显存验证。
+
+## 2026-10-10：seed 42 开发五折
+
+本轮接通 `dev_cv5`：官方 train＋valid 构成开发池，训练种子42，划分种子20261004；默认 B01/B02/B04 各五折，共15次。训练、推理仍复用唯一入口，fold参与配置、目录、checkpoint、预测和恢复身份。每个模型全部五折完成后，按病例拼接 heldout 预测并重算 pooled OOF 指标；不以逐折指标均值代替 pooled 指标。
+
+| 检查 | 结果 | 证据/边界 |
+| --- | --- | --- |
+| 完整测试 | 179 passed | outputs/validation/pytest_cv42.xml、pytest_cv42.log；含原官方留出契约和CV新增检查 |
+| 官方留出 CPU smoke | 通过 | outputs/smoke_holdout_after_cv/report.json；B01/B02/B04、合成图像、tiny encoder、2轮 |
+| seed42 五折 CPU smoke | 15次通过 | outputs/smoke_cv42_cpu/report.json；合成30例，其中25例开发池、5例封存test；B01/B02/B04、tiny encoder、2轮 |
+| 五折服务器入口集成 | 通过 | tests/test_cv_server.py；真实server→runner→trainer→collector，B04五折合成数据；epoch1中断后恢复，OOF及完整折复用 |
+| CV恢复与产物身份 | 通过 | 同环境恢复与不中断结果逐tensor/history一致；拒绝跨fold、划分/来源漂移、缺折、重复病例或不完整注册 |
+| 末轮EMA中断恢复 | 通过 | tests/test_cv_training.py；Regular末轮已保存但EMA缺失或旧epoch时补齐，预算已满不重训；一致EMA保持原SHA256 |
+| 预测及OOF原子写入 | 通过 | 临时ZIP写入后注入KeyboardInterrupt，不发布损坏最终NPZ；完全一致NPZ缺metrics可补，已有异变拒绝覆盖 |
+| 两种协议 dry run | 各15项通过 | outputs/validation/baselines_after_cv_dry_run.json、cv42_dry_run.json；未训练 |
+| 服务器五折最终计划 | 15项通过 | outputs/server/cv42_plan_verified/job.json及其plan；B01/B02/B04、seed42、25轮；未访问数据或导入ML |
+| 真实候选数据固定划分 | 616例通过 | outputs/validation/cv42_data_check/data/folds_meta.json；valid数量124/123/123/123/123，全部开发病例恰好一次，无test；跨折精确图像重复检查通过 |
+| 真实候选数据fold0预检 | 通过 | outputs/validation/cv42_data_check/preflight.json；CPU、B04配置，train492/valid124；只读原始数据，未构造模型、下载权重或训练 |
+| 最终证据与来源哈希 | 已记录 | outputs/validation/cv42_validation.json；当前源码、配置、清单/折分、合成checkpoint及OOF文件SHA256 |
+
+本轮使用 `/tmp/derm7pt-server-venv` 的CPU依赖环境。候选数据清单复制到本项目的验证目录，原始索引、图像和原有清单保持原样；患者身份及临床替代状态仍待核验，不声明患者级互斥或正式数据就绪。合成smoke验证的是流程与恢复，不是医学性能证据。
+
+真实训练由用户在服务器启动；本轮没有执行真实ConvNeXt五折训练、服务器CUDA训练、真实预训练下载、官方test推理或refit。模型显存、耗时、收敛与性能仍待服务器实测。25轮保持开发预算；单种子不提供跨种子方差，五折标准差只作为开发描述统计单独报告。
+
+## 2026-10-10：Git初始化
+
+使用main分支建立本地仓库，提交源码、配置、测试和文档。原始数据、本地生成的data/manifests、权重及outputs忽略，仅保留清单目录占位文件；已验证暂存范围及暂存字节与工作文件一致。`.gitattributes` 固定源码、脚本和文本配置的LF换行，README同步仓库与数据准备说明。
+
+提交前重新执行完整测试179 passed（outputs/validation/pytest_git_init.xml）、CPU合成smoke通过（outputs/smoke_git_init_cpu/report.json）、官方基线dry run共15项通过（outputs/validation/baselines_git_init_dry_run.json），`git diff --cached --check`通过。没有启动真实数据训练；未改训练或推理实现。

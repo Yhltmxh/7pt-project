@@ -1,0 +1,98 @@
+# Development starting points, not frozen Derm7pt hyperparameters.
+# Choose the root, clinical-substitution policy and epoch budget after the data audit.
+schema_version: 1
+stage: draft
+experiment:
+  id: derm7pt_mean_ce
+  suite: baseline
+  seeds: [101, 3407, 777]
+  output_root: outputs/runs
+
+dataset:
+  name: derm7pt
+  root: null
+  manifest: data/manifests/samples.csv
+  label_map: data/manifests/label_map.json
+  num_classes: 5
+  split_protocol: official_holdout
+  folds_file: null
+  cv_fold: null
+  split_seed: 20261004
+  clinical_substitution_policy: null
+  metadata_fields: []
+  unknown_category: explicit_unknown
+
+preprocess:
+  image_size: 224
+  normalization: imagenet
+  geometry_coupling: shared
+  appearance_coupling: none
+  train_augmentation: flips
+  inference_augmentation: none
+
+model:
+  modalities: [clinical, dermoscopic]
+  clinical_encoder: convnext_base
+  dermoscopic_encoder: convnext_base
+  independent_encoders: true
+  pretrained_id: ConvNeXt_Base_Weights.IMAGENET1K_V1
+  fusion: mean
+  cross_attention_direction: null
+  feature_dim: null
+  metadata_attention: false
+  metadata_late_fusion: false
+  metadata_tokens: false
+  refinement: none
+  layer_scale_init: 0.001
+  attribute_head: false
+  mechanism:
+    name: none
+    parameters: {}
+
+loss:
+  diagnosis: cross_entropy
+  class_weights_source: train_partition_only
+  focal_gamma: null
+  cb_beta: null
+  attribute_type: categorical_cross_entropy
+  attribute_lambda: 0.0
+  attribute_reduction: mean_valid_tasks
+  mechanism_lambda: 0.0
+
+train:
+  epochs: null
+  selection_protocol: fixed
+  checkpoint_epoch: final
+  batch_size: 16
+  gradient_accumulation: 1
+  optimizer: adamw
+  backbone_learning_rate: 5.0e-5
+  head_learning_rate: 5.0e-4
+  weight_decay: 5.0e-3
+  scheduler: warmup_cosine
+  warmup_epochs: 5
+  min_learning_rate: 1.0e-7
+  mixed_precision: true
+  max_grad_norm: 1.0
+  num_workers: 4
+  device: auto
+  ema:
+    enabled: true
+    decay: 0.999
+
+evaluation:
+  main_metric: diagnosis_macro_f1
+  decision_rule: argmax
+  checkpoint_type: ema
+  tta: false
+  aggregate_seeds: false
+  class_order: [BCC, NEV, MEL, MISC, SK]
+  bootstrap_iterations: 2000
+  bootstrap_seed: 2126
+  bootstrap_unit: case
+
+provenance:
+  require_source_hash: true
+  require_data_hash: true
+  require_resolved_config: true
+  legacy_checkpoint_allowed: false

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+.env.*
+!.env.example
+outputs/**
+!outputs/.gitkeep
+data/raw/
+data/manifests/**
+!data/manifests/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.safetensors

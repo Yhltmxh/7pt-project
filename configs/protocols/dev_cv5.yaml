@@ -1,0 +1,21 @@
+# Development evidence: fixed five-fold CV over official train+valid; test sealed.
+# Training seed 42 is independent of the fixed split seed 20261004.
+stage: development
+dataset:
+  split_protocol: dev_cv5
+  split_seed: 20261004
+  folds_file: null
+  cv_fold: null
+train:
+  epochs: 25
+  selection_protocol: fixed
+  checkpoint_epoch: final
+  batch_size: 1
+  gradient_accumulation: 16
+  num_workers: 4
+  device: cuda
+evaluation:
+  decision_rule: argmax
+  checkpoint_type: ema
+  tta: false
+  bootstrap_unit: case

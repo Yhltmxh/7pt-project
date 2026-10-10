@@ -1,0 +1,13 @@
+# Train on official train only; report valid during development.
+# Test prediction must be requested independently after the method is frozen.
+dataset:
+  split_protocol: official_holdout
+  folds_file: null
+train:
+  selection_protocol: fixed
+  checkpoint_epoch: final
+evaluation:
+  decision_rule: argmax
+  checkpoint_type: ema
+  tta: false
+  bootstrap_unit: case

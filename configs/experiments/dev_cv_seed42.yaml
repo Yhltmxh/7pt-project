@@ -1,0 +1,21 @@
+# Three image baselines x seed 42 x five fixed development folds = 15 runs.
+# Data root, folds_file and clinical substitution policy must be chosen before execution.
+suite_id: derm7pt_dev_cv_seed42
+base_config: configs/base.yaml
+protocol_config: configs/protocols/dev_cv5.yaml
+seeds: [42]
+experiments:
+  - id: B01
+    parent: base
+    overrides:
+      model.modalities: [clinical]
+      model.fusion: single
+  - id: B02
+    parent: base
+    overrides:
+      model.modalities: [dermoscopic]
+      model.fusion: single
+  - id: B04
+    parent: base
+    overrides:
+      model.fusion: mean
