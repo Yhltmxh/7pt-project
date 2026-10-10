@@ -79,3 +79,20 @@ GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初�
 使用main分支建立本地仓库，提交源码、配置、测试和文档。原始数据、本地生成的data/manifests、权重及outputs忽略，仅保留清单目录占位文件；已验证暂存范围及暂存字节与工作文件一致。`.gitattributes` 固定源码、脚本和文本配置的LF换行，README同步仓库与数据准备说明。
 
 提交前重新执行完整测试179 passed（outputs/validation/pytest_git_init.xml）、CPU合成smoke通过（outputs/smoke_git_init_cpu/report.json）、官方基线dry run共15项通过（outputs/validation/baselines_git_init_dry_run.json），`git diff --cached --check`通过。没有启动真实数据训练；未改训练或推理实现。
+
+## 2026-10-10：Conda依赖安装脚本
+
+新增 `scripts/setup_conda.sh`，环境名按用户要求默认为dlenv，GPU配置采用只读实时核验的本机版本：Python3.13.9、torch2.9.0+cu130、torchvision0.24.0+cu130。cu126/cu128为可选GPU构建；CPU选项沿用已验证的Python3.12、torch2.8.0+cpu/torchvision0.23.0+cpu。匹配的wheel对来自PyTorch官方源，第二步requirements解析使用constraints固定版本及构建；实际安装成功时记录软件版本与脚本/requirements SHA256。
+
+| 检查 | 结果 | 边界 |
+| --- | --- | --- |
+| 完整测试 | 191 passed | outputs/validation/pytest_conda_setup.xml；含12项安装入口检查 |
+| Conda入口边界 | 通过 | tests/test_conda_setup.py；mock Conda管理和pip安装，验证默认dlenv/cu130、非法配置拒绝、旧环境保留、显式reuse及Python不匹配时停止；CPU探针调用真实已有隔离环境 |
+| Bash语法/help/dry-run | 通过 | 未依赖实际Conda，未创建环境或下载 |
+| CPU smoke和基线计划 | 通过 | outputs/smoke_conda_setup_cpu/report.json、outputs/validation/baselines_conda_setup_dry_run.json；合成训练及15项草稿计划 |
+| 本机GPU版本 | 实时确认 | Windows dlenv Python3.13.9、torch2.9.0+cu130、torchvision0.24.0+cu130、CUDA13.0；RTX5060 Laptop，驱动581.57 |
+| 本机GPU小运算探针 | 通过 | outputs/validation/conda_local_gpu_ops.w9_blx5n/environment.json；与安装脚本相同的Conv2d前向/反向、有限梯度及CUDA原生NMS |
+
+本机原Windows dlenv没有pytest，因此原样执行完整安装后验证片段在pytest导入处拒绝；未向该环境安装软件。GPU运算复查只省略该导入，执行代码SHA256及边界在上述报告中单独记录。安装脚本先安装项目requirements（包含pytest），再执行完整导入和运算检查。
+
+本轮没有实际执行Conda环境创建、网络wheel安装或服务器Linux CUDA检查，本机既有Windows环境未改动；Conda/pip路由测试不证明真实下载安装成功。服务器执行脚本后的验证与environment.json才记录实际安装结果。GPU小探针不代表完整ConvNeXt显存、训练稳定性或医学性能验证。

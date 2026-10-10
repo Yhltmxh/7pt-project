@@ -26,7 +26,7 @@ bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seed
 SSH后台一行启动，先执行 `mkdir -p outputs/server`：
 
 ```bash
-nohup bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --python "$PWD/.venv/bin/python" --job-dir outputs/server/cv42 > outputs/server/cv42.launch.log 2>&1 < /dev/null &
+nohup bash scripts/train_server.sh --data-root /data/derm7pt --protocol dev_cv5 --seeds 42 --python "$(command -v python)" --job-dir outputs/server/cv42 > outputs/server/cv42.launch.log 2>&1 < /dev/null &
 ```
 
 查看日志和恢复：
@@ -56,7 +56,27 @@ bash scripts/train_server.sh --data-root /data/derm7pt
 
 ## Python 和 GPU 环境
 
-服务器需已有可用的 Linux Python 3.10 或更高版本、匹配的 PyTorch/torchvision 和实际 CUDA 运行环境。可先建立独立环境，再按当前项目依赖安装：
+服务器需已有可用的 Linux Python 3.10 或更高版本、匹配的 PyTorch/torchvision 和实际 CUDA 运行环境。已有Conda时，在项目根目录执行：
+
+```bash
+bash scripts/setup_conda.sh
+conda activate dlenv
+```
+
+脚本默认创建名为dlenv的独立Python3.13.9环境，安装PyTorch2.9.0/torchvision0.24.0的CUDA13.0 wheel，再安装requirements.txt中的其他依赖；使用constraints避免第二次依赖解析切换torch版本或CPU/GPU构建。该组GPU版本来自本机Windows dlenv的只读实时核验（2026-10-10）；Linux wheel配对与源依据[PyTorch官方安装表](https://pytorch.org/get-started/previous-versions/#v290)。Conda负责环境与Python，PyTorch在该环境中用pip安装。
+
+其他构建、查看计划和失败后重试：
+
+```bash
+bash scripts/setup_conda.sh --name dlenv-cu126 --variant cu126
+bash scripts/setup_conda.sh --name dlenv-cpu --variant cpu
+bash scripts/setup_conda.sh --dry-run
+bash scripts/setup_conda.sh --name dlenv --variant cu130 --reuse
+```
+
+支持cu126/cu128/cu130/cpu；GPU构建需匹配服务器实际驱动，脚本不安装驱动。CPU选项使用已验证的Python3.12、torch2.8.0+cpu/torchvision0.23.0+cpu，供流程检查。已有环境默认拒绝修改，`--reuse`明确安装到已有兼容Python环境（GPU为3.13，CPU为3.12）；不要在训练运行期间更改该环境依赖。脚本通过 `conda run` 使用指定环境，不要求安装前activate；实际版本、依赖清单和脚本/requirements SHA256记录到 `outputs/conda_setup.*/`。安装完成的小Conv2d反向与torchvision原生NMS检查不代替完整模型显存验证。
+
+也可使用venv建立独立环境：
 
 ```bash
 python3 -m venv .venv
@@ -98,7 +118,7 @@ mkdir -p outputs/server
 以下是一行后台启动命令；断开 SSH 后仍保留进程和日志：
 
 ```bash
-nohup bash scripts/train_server.sh --data-root /data/derm7pt --python "$PWD/.venv/bin/python" --job-dir outputs/server/baseline_dev25 > outputs/server/baseline_dev25.launch.log 2>&1 < /dev/null &
+nohup bash scripts/train_server.sh --data-root /data/derm7pt --python "$(command -v python)" --job-dir outputs/server/baseline_dev25 > outputs/server/baseline_dev25.launch.log 2>&1 < /dev/null &
 ```
 
 查看启动、预检与训练进度：

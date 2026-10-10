@@ -38,6 +38,17 @@ outputs/                 运行计划、smoke及未来研究产物
 
 在项目根目录执行。建议为新课题建独立环境，不修改 ISIC2025 环境。
 
+服务器已有Conda时，可一键建立项目环境：
+
+```bash
+bash scripts/setup_conda.sh
+conda activate dlenv
+```
+
+默认环境名dlenv，GPU配置采用本机已核验的Python3.13.9、PyTorch2.9.0/torchvision0.24.0、CUDA13.0 wheel；依赖安装后检查版本、导入及设备前向/反向，并把实际版本与来源哈希记录到outputs。CPU开发环境使用 `bash scripts/setup_conda.sh --name dlenv-cpu --variant cpu`，采用已验证的Python3.12及torch2.8.0/torchvision0.23.0。GPU可选cu126/cu128/cu130，需匹配服务器驱动；已有环境默认拒绝修改，安装失败后可显式加 `--reuse` 重试。完整参数见 `bash scripts/setup_conda.sh --help`。
+
+也可使用venv：
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
