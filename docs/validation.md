@@ -104,3 +104,11 @@ GPU初次检查发现FP16高初始缩放导致梯度溢出，已经修复：初�
 完整测试192 passed（`outputs/validation/pytest_conda_tos.xml`）；13项安装入口检查包含模拟默认源未接受条款时的创建行为，实际CPU运算探针继续通过。CPU合成smoke通过（`outputs/smoke_conda_tos_cpu/report.json`）；官方基线dry-run生成15项计划且未启用test推理（`outputs/validation/baselines_conda_tos_dry_run.json`）；Bash语法及Git diff检查通过。
 
 上述验证使用已有隔离CPU环境和mock Conda/pip，不代表已在服务器完成真实Conda下载安装。服务器执行更新后的脚本会生成实际版本及脚本/requirements SHA256报告；本轮没有启动真实训练或修改其他项目环境。
+
+## 2026-10-10：缺少PyYAML时的训练入口诊断
+
+针对服务器反馈的 `No module named 'yaml'`，核验requirements.txt已包含PyYAML；目前不能从单条报错判定服务器是未完成安装还是选错解释器。训练入口增加实际Python路径日志；缺少模块时输出环境选择提示，缺少yaml时给出针对该解释器的PyYAML安装命令。服务器说明补充激活dlenv、使用python -m pip安装及显式指定训练解释器的步骤。未自动安装依赖或更改训练配置。
+
+完整测试193 passed（`outputs/validation/pytest_missing_yaml.xml`），新增缺包诊断及创建作业前拒绝的回归检查。另用实际空venv通过Bash入口复现缺少yaml，确认退出码2、解释器路径和可执行修复命令，且未创建作业（`outputs/validation/missing_yaml_probe.json`，含入口源码SHA256）。CPU合成smoke通过（`outputs/smoke_missing_yaml_cpu/report.json`）；官方基线dry-run生成15项计划，无test推理（`outputs/validation/baselines_missing_yaml_dry_run.json`）。
+
+验证没有访问用户服务器、向其他项目或既有Windows环境安装软件，也没有启动真实训练。服务器实际解释器、安装完成状态及CUDA可用性须通过服务器上的安装验证和启动日志确认。

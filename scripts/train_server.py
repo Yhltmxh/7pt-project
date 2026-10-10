@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import signal
 import sys
@@ -446,6 +447,7 @@ def main(argv=None):
     if os.name != "posix":
         print("error: This launcher requires a Linux/WSL server", file=sys.stderr)
         return 2
+    print(f"Python interpreter: {sys.executable}", flush=True)
     old_term = signal.getsignal(signal.SIGTERM)
 
     def terminate(signum, frame):
@@ -459,6 +461,17 @@ def main(argv=None):
     except KeyboardInterrupt:
         print("Interrupted. Resume the saved job from its last full epoch checkpoint.", file=sys.stderr)
         return 130
+    except ModuleNotFoundError as exc:
+        print(f"error: {exc}\nPython interpreter: {sys.executable}", file=sys.stderr)
+        print("Activate your project environment (conda activate dlenv), then select it with "
+              '--python "$(command -v python)".', file=sys.stderr)
+        if exc.name == "yaml":
+            command = shlex.join([sys.executable, "-m", "pip", "install", "PyYAML>=6,<7"])
+            print(f"The yaml module is provided by PyYAML. Install into this interpreter:\n{command}",
+                  file=sys.stderr)
+        print("If setup did not finish, rerun bash scripts/setup_conda.sh --reuse "
+              "in the intended compatible Conda environment.", file=sys.stderr)
+        return 2
     except (OSError, ValueError, RuntimeError, ImportError, KeyError, TypeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

@@ -58,6 +58,29 @@ def test_explicit_data_root_and_invalid_arguments_fail_before_job_creation(tmp_p
         assert not (tmp_path / "job").exists()
 
 
+def test_missing_yaml_reports_actual_interpreter_and_repair_without_job_creation(tmp_path):
+    code = """
+import builtins, sys
+original = builtins.__import__
+def guarded(name, *args, **kwargs):
+    if name == 'yaml':
+        raise ModuleNotFoundError("No module named 'yaml'", name='yaml')
+    return original(name, *args, **kwargs)
+builtins.__import__ = guarded
+from scripts.train_server import main
+raise SystemExit(main(sys.argv[1:]))
+"""
+    result = subprocess.run([sys.executable, "-c", code, "--data-root", str(tmp_path / "missing"),
+                             "--job-dir", str(tmp_path / "job"), "--dry-run"],
+                            cwd=launcher.PROJECT_ROOT, capture_output=True, text=True)
+    assert result.returncode == 2
+    assert sys.executable in result.stdout and sys.executable in result.stderr
+    assert "No module named 'yaml'" in result.stderr
+    assert "PyYAML>=6,<7" in result.stderr and "-m pip install" in result.stderr
+    assert "conda activate dlenv" in result.stderr and "--python" in result.stderr
+    assert not (tmp_path / "job").exists() and not (tmp_path / "missing").exists()
+
+
 def test_resume_loads_saved_parameters_and_rejects_drift_without_writes(tmp_path, monkeypatch):
     directory, job = launcher._resolve_job(_args(tmp_path, "--epochs", "30", "--num-workers", "0"))
     # Environment data root affects only a new job, never a saved job.

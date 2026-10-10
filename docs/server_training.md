@@ -108,6 +108,17 @@ python -c 'import torch, torchvision; print(torch.__version__, torchvision.__ver
 DERM7PT_PYTHON="$PWD/.venv/bin/python" DERM7PT_ROOT=/data/derm7pt bash scripts/train_server.sh --preflight-only
 ```
 
+若报 `No module named 'yaml'`，当前训练解释器没有PyYAML；requirements.txt已声明该依赖，通常需要完成安装或选中正确环境。启动日志会打印实际Python路径。先在项目目录执行，并将数据路径替换为服务器实际路径：
+
+```bash
+conda activate dlenv
+python -m pip install "PyYAML>=6,<7"
+python -c 'import sys, yaml; print(sys.executable); print("PyYAML:", yaml.__version__)'
+bash scripts/train_server.sh --python "$(command -v python)" --data-root /data/derm7pt --protocol dev_cv5 --seeds 42
+```
+
+使用 `python -m pip` 可保证安装到训练所选解释器。若安装脚本此前未成功完成，执行 `bash scripts/setup_conda.sh --reuse` 补全项目依赖并完成设备验证；单独补PyYAML只解决当前缺包错误。遇到其他缺包或CUDA错误时按实际报错修复，不宣称安装已完成。
+
 ## 先看计划，再做预检
 
 ```bash
