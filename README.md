@@ -1,6 +1,6 @@
 # Derm7pt 多模态分类基础项目
 
-根据 [交接文档](derm7pt_ai_handoff.md) 建立。研究机制尚未确定，当前交付是可训练、可恢复、可导出病例级预测的公共 baseline，实验结果尚未产生。
+根据 [交接文档](derm7pt_ai_handoff.md) 建立。研究机制尚未确定，当前交付是可训练、可恢复、可导出病例级预测的公共 baseline；首轮 seed42 开发五折已完成预测分析，正式实验尚未开始。
 
 ## 当前实现
 
@@ -16,7 +16,7 @@
 
 模型层预留七项分类属性头、masked CE 和 CB Focal 的实现及契约测试；首版配置入口暂时禁止开启，避免把未经实验确认的选项混进基线。已接入开发五折与 pooled OOF；空间交叉注意力、源 V2 迁移、refit、B03 概率融合和候选研究机制列为后续阶段。
 
-基础配置已参考ISIC2025：Pillow读取RGB，Albumentations 2.0.8执行双模态共享几何及外观增强，训练/验证支持tqdm进度条；学习率、AdamW、warmup/cosine、EMA和梯度裁剪保持统一。增强参数全部写入configs/base.yaml；验证只缩放和标准化。来源版本、迁移差异及完整参数对照见 [基础配置参考](docs/isic2025_reference.md)。这组设置是新的开发起点，尚无Derm7pt性能证据。
+基础配置已参考ISIC2025：Pillow读取RGB，Albumentations 2.0.8执行双模态共享几何及外观增强，训练/验证支持tqdm进度条；学习率、AdamW、warmup/cosine、EMA和梯度裁剪保持统一。增强参数全部写入configs/base.yaml；验证只缩放和标准化。来源版本、迁移差异及完整参数对照见 [基础配置参考](docs/isic2025_reference.md)。这组设置用于首轮开发五折；后续正则化候选以独立profile运行，不能将开发结果当成正式性能证据。
 
 ## 目录
 
@@ -115,3 +115,13 @@ python scripts/collect_results.py --suite-id derm7pt_baseline_v1
 训练完成后用 `bash scripts/export_results.sh` 导出最近完成的作业；也可用 `--job-dir outputs/server/<job>` 指定相对路径。分析包位于 `outputs/exports/`，保留项目相对目录，包含历史曲线、Regular/EMA指标和预测、五折OOF、配置及审计，默认跳过权重；追加 `--include-checkpoints` 可导出权重。脚本仅依赖Python标准库，不重算训练结果，不修改原作业。
 
 项目使用 Git 跟踪源码、配置、测试和文档；本地生成的数据清单、原始数据、模型权重及训练输出不纳入仓库。克隆后需按上文重新准备数据。运行同时记录 Git 状态及源码 SHA256。开发进展及实际验证范围见 [docs/validation.md](docs/validation.md)。
+
+## 当前 seed 42 双模态开发训练
+
+首轮B01/B02/B04的seed42五折已完成本地预测分析。下一轮仅训练B04五折，使用新作业和独立配置身份：
+
+```bash
+bash scripts/train_server.sh --data-root data/derm7pt --profile b04_regularized --offline
+```
+
+默认25轮、batch16、梯度累积1，head dropout0.5、同步双模态Mixup0.2、EMA0.99；逐轮记录Regular验证和固定预处理训练集指标。无新增依赖。该候选是尚待训练验证的开发方案，来源与旧结果可比性限制见[旧Derm7pt参考](docs/derm7pt_reference.md)。test继续封存，不续用首轮checkpoint。

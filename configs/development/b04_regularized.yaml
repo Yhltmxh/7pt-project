@@ -1,0 +1,22 @@
+# Development candidate; not a reproduction of the old multitask/metadata model.
+# Reference: Yhltmxh/Derm7pt commit f62b13abeb7a0b1697dc50c8532032fa2025c514
+# src/model.py: diagnosis dropout=0.5; src/train_cv.py: Mixup alpha=0.2.
+stage: development
+experiment:
+  id: B04
+  seeds: [42]
+model:
+  modalities: [clinical, dermoscopic]
+  fusion: mean
+  head_dropout: 0.5
+train:
+  epochs: 25
+  warmup_epochs: 5
+  batch_size: 16
+  gradient_accumulation: 1
+  mixup_alpha: 0.2
+  ema:
+    decay: 0.99
+evaluation:
+  track_regular: true
+  track_train: true

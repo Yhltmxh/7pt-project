@@ -204,7 +204,8 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
     from src.losses import build_loss
     from src.models.model import build_model
     from src.train_utils import (ModelEMA, build_optimizer, build_scheduler, capture_rng,
-        collect_predictions, load_checkpoint, restore_rng, save_checkpoint, set_seed, state_hash, train_epoch)
+        collect_predictions, load_checkpoint, prediction_cross_entropy, restore_rng,
+        save_checkpoint, set_seed, state_hash, train_epoch)
     report = preflight(cfg)
     manifest, label_map = (resolve_path(cfg['dataset'][k]) for k in ('manifest', 'label_map'))
     identity = make_identity(cfg, seed, manifest, label_map)
@@ -266,6 +267,7 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
             enabled=device.type == 'cuda' and cfg['train']['mixed_precision'])
         train_loader = make_loader(cfg, 'train', generator, True)
         valid_loader = make_loader(cfg, 'valid')
+        clean_train_loader = make_loader(cfg, 'train') if cfg['evaluation']['track_train'] else None
         counts = [sum(r['diagnosis_index'] == c for r in train_loader.dataset.rows) for c in range(5)]
         criterion = build_loss(cfg['loss'], class_counts=counts).to(device)
         history, start_epoch, initial_hash = [], 0, None
@@ -308,6 +310,24 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
             valid_predictions = collect_predictions(evaluated_model, valid_loader, device,
                                                     progress_bar=cfg['train']['progress_bar'])
             metrics = classification_metrics(valid_predictions['logits'], valid_predictions['y_true'])
+            diagnostics = {'valid_loss': prediction_cross_entropy(valid_predictions),
+                'train_accuracy_definition': ('mixup_weighted_label_accuracy' if cfg['train']['mixup_alpha']
+                                              else 'augmented_hard_label_accuracy')}
+            if cfg['evaluation']['track_regular']:
+                regular_predictions = valid_predictions if evaluated_model is model else collect_predictions(
+                    model, valid_loader, device, progress_bar=cfg['train']['progress_bar'])
+                regular_metrics = classification_metrics(regular_predictions['logits'], regular_predictions['y_true'])
+                diagnostics.update(valid_regular_loss=prediction_cross_entropy(regular_predictions),
+                    valid_regular_accuracy=regular_metrics['accuracy'],
+                    valid_regular_macro_f1=regular_metrics['diagnosis_macro_f1'],
+                    valid_regular_balanced_accuracy=regular_metrics['balanced_accuracy'])
+            if clean_train_loader is not None:
+                clean_predictions = collect_predictions(model, clean_train_loader, device,
+                                                       progress_bar=cfg['train']['progress_bar'])
+                clean_metrics = classification_metrics(clean_predictions['logits'], clean_predictions['y_true'])
+                diagnostics.update(train_regular_eval_loss=prediction_cross_entropy(clean_predictions),
+                    train_regular_eval_accuracy=clean_metrics['accuracy'],
+                    train_regular_eval_macro_f1=clean_metrics['diagnosis_macro_f1'])
             history.append({'epoch': epoch + 1, 'loss': losses['total'], 'diagnosis_loss': losses['diagnosis'],
                 'attribute_loss': losses['attributes'], 'backbone_lr': lr[0], 'head_lr': lr[1],
                 'optimizer_updates': losses['optimizer_updates'],
@@ -315,7 +335,7 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
                 'valid_checkpoint_type': cfg['evaluation']['checkpoint_type'],
                 'train_accuracy': losses['accuracy'],
                 'valid_accuracy': metrics['accuracy'],
-                'valid_diagnosis_macro_f1': metrics['diagnosis_macro_f1']})
+                'valid_diagnosis_macro_f1': metrics['diagnosis_macro_f1'], **diagnostics})
             scheduler.step()
             payload = {'schema_version': 1, 'identity_hash': identity['identity_hash'],
                 'class_order': list(CLASS_ORDER), 'resolved_config': cfg, 'seed': seed, 'epoch': epoch + 1,
@@ -334,10 +354,15 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
                     if key not in ('optimizer', 'scheduler', 'scaler', 'rng', 'ema')})
             _write_history(run_dir / 'history.csv', history)
             write_json(run_dir / 'status.json', status)
+            detail = (f" regular_valid_f1={diagnostics['valid_regular_macro_f1']:.6f} "
+                      f"regular_valid_loss={diagnostics['valid_regular_loss']:.4f}"
+                      if cfg['evaluation']['track_regular'] else '')
+            if clean_train_loader is not None:
+                detail += f" clean_train_acc={diagnostics['train_regular_eval_accuracy']:.4f}"
             print(f"epoch={epoch+1}/{cfg['train']['epochs']} backbone_lr={lr[0]:.2e} head_lr={lr[1]:.2e} "
                   f"loss={losses['total']:.6f} train_acc={losses['accuracy']:.4f} "
                   f"valid_acc={metrics['accuracy']:.4f} valid_macro_f1={metrics['diagnosis_macro_f1']:.6f} "
-                  f"updates={losses['optimizer_updates']} amp_skips={losses['skipped_optimizer_steps']}", flush=True)
+                  f"updates={losses['optimizer_updates']} amp_skips={losses['skipped_optimizer_steps']}{detail}", flush=True)
             if stop_after_epoch is not None and epoch + 1 >= stop_after_epoch and epoch + 1 < cfg['train']['epochs']:
                 status.update(status='interrupted', stage='training', reason='Explicit epoch-boundary stop')
                 write_json(run_dir / 'status.json', status)

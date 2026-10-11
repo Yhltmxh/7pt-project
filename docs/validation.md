@@ -154,3 +154,11 @@ scripts/export_results.sh只使用Bash及Python标准库，自动选择最近完
 此前临时CPU环境已不存在，本轮在/tmp/derm7pt-export-venv重建隔离环境，安装requirements.cpu-tested.lock.txt，pip check通过；没有修改Conda或Windows环境。完整测试207 passed、26条既有Python3.12 fork警告（outputs/validation/pytest_export_results.xml）；CPU合成smoke通过（outputs/smoke_export_results_cpu/report.json）；官方基线dry-run15项通过（outputs/validation/baselines_export_results_dry_run.json）。Bash语法及Git diff检查通过。未访问用户服务器、未启动真实训练或进行test性能评价。
 
 脚本、当前训练源码/配置、环境及验证产物哈希索引见outputs/validation/export_results_validation.json。
+
+## 2026-10-11 seed42 双模态正则化候选
+
+新增b04_regularized服务器profile（仅B04/seed42固定五折）、head dropout配置、同步双模态Mixup及逐轮Regular/EMA验证与clean训练集诊断。旧Derm7pt参考仅静态读取，commit及文件SHA256在docs/derm7pt_reference.json；旧索引减1/类顺序/最佳轮与阈值规则不迁移。
+
+CPU Python3.12 / torch2.8.0+cpu验证：`python -m pytest -q` 215 passed、26条multiprocessing/fork弃用警告；默认合成CPU smoke通过；baseline dry-run通过；新profile dry-run核验恰好B04×seed42×五折共5次，无benchmark训练。新增专项测试覆盖双图同排列同lambda、singleton、RNG重放、非法参数、扩大运行范围拒绝，以及启用Mixup/dropout/诊断后的Regular/EMA逐参数精确恢复。首次pytest误采集只读参考仓库的旧测试，随后用pytest.ini将项目默认发现范围限定为tests，重新完整通过。
+
+日志位于outputs/validation/regularized_seed42（不纳入Git）。本机未验证RTX5090真实双ConvNeXt训练、显存容量或新候选性能；合成分数不是研究证据。没有评价test、修改原训练输出或启动服务器训练。

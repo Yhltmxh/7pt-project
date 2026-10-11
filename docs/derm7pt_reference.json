@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/Yhltmxh/Derm7pt",
+  "commit": "f62b13abeb7a0b1697dc50c8532032fa2025c514",
+  "files": {
+    "src/model.py": "d56e0453a88ca845c6027971803616dac2f607dbfb2a767fd509c49c67d2a50e",
+    "src/train_cv.py": "e173d4cb4e488e3f9833b90c5478516a7777df84e9687d4edbe065ea86370aaf",
+    "src/train_utils.py": "50195a716185b6526eaf4a60fa46fde9bc89c6c9d697c6ef5467661d515c5516",
+    "src/data_utils.py": "3195e89507a0aa95fb2a3ca93ef7eeef1794007aad805cd81e4a13ba434000d0",
+    "src/config.py": "1b036fb9fd78a8d295ae18305d1b08b81f97d58a354d6f3ed2c822447abd42bd",
+    "docs/log_cv.md": "0279feaaaab4b39104c5a2d72b9b9eedb98a1bf4227cacffe94290ba0cf0b70c"
+  },
+  "scope": "Static read of source/logs; old training not executed and metrics not independently recomputed"
+}

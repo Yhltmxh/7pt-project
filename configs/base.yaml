@@ -65,6 +65,7 @@ model:
   refinement: none
   layer_scale_init: 0.001
   attribute_head: false
+  head_dropout: 0.0
   mechanism:
     name: none
     parameters: {}
@@ -85,6 +86,7 @@ train:
   checkpoint_epoch: final
   batch_size: 16
   gradient_accumulation: 1
+  mixup_alpha: 0.0
   optimizer: adamw
   backbone_learning_rate: 5.0e-5
   head_learning_rate: 5.0e-4
@@ -105,6 +107,8 @@ train:
     decay: 0.999
 
 evaluation:
+  track_regular: false
+  track_train: false
   main_metric: diagnosis_macro_f1
   decision_rule: argmax
   checkpoint_type: ema

@@ -220,3 +220,18 @@ bash scripts/train_server.sh --resume outputs/server/baseline_dev25
 作业数据准备阶段若留下不完整的 `data/`，入口同样保留它并拒绝覆盖，应使用新作业目录。已完成项会校验后复用；当前整作业恢复仍会执行原设备和磁盘预检，需要原训练环境可用。
 
 目前尚未完成真实数据完整训练。启动入口的静态检查、契约测试、合成 smoke 和预检只能验证各自覆盖的工程行为；真实 GPU 训练是否可完成、实际显存／耗时及模型性能仍需服务器实际运行确认。正式评价继续遵循 [开发协议](protocol.md)，默认一键入口产物均属于开发阶段。
+
+## seed 42 双模态正则化开发作业
+
+在项目根目录执行（已安装之前训练所需依赖，使用原服务器训练环境）：
+
+```bash
+git pull --ff-only
+bash scripts/train_server.sh --data-root data/derm7pt --profile b04_regularized --offline
+```
+
+此profile固定选择B04、seed42、dev_cv5、split_seed20261004，共5次训练；默认25轮、batch16/accumulation1。启用head dropout0.5、同步双模态Mixup alpha0.2、EMA decay0.99。逐轮保存Regular heldout指标以及固定预处理的训练集Regular指标，以排查过拟合；CE、图片增强和mean融合保持原方案。来源/限制见[旧项目参考](derm7pt_reference.md)。无新增pip依赖。
+
+先核对计划可追加 `--dry-run`，只检查环境和数据可追加 `--preflight-only`。这两种模式均创建独立作业，不启动训练。`--offline`要求服务器保留首轮训练使用的ConvNeXt官方缓存，避免再次下载触发SSL错误；若缓存不存在，按原预训练缓存说明放入后再启动，不关闭证书校验。
+
+profile只接受B04/seed42的固定五折，不能通过 `--only` 或 `--seeds` 意外扩大范围。输出仍为 `outputs/server/<新作业>/`；原作业保持不变，不给新设置使用旧 `--resume`。新作业如中断，在同一源码/环境下用 `bash scripts/train_server.sh --resume outputs/server/<新作业>` 恢复。最终Regular和EMA预测都保存，汇总主结果仍为末轮EMA。

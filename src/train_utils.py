@@ -123,6 +123,31 @@ def progress_batches(loader, description, enabled=True):
                 disable=not enabled or not getattr(stream, 'isatty', lambda: False)())
 
 
+def mixup_inputs(inputs, targets, alpha):
+    """Use one permutation and beta draw for every image modality; IDs stay outside forward."""
+    labels = targets['diagnosis']
+    if alpha <= 0 or len(labels) < 2:
+        return inputs, targets, targets, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    permutation = torch.randperm(len(labels), device=labels.device)
+    mixed = dict(inputs)
+    for name in ('clinical', 'dermoscopic'):
+        if inputs.get(name) is not None:
+            image = inputs[name]
+            mixed[name] = lam * image + (1 - lam) * image[permutation]
+    other = dict(targets)
+    other['diagnosis'] = labels[permutation]
+    return mixed, targets, other, lam
+
+
+def prediction_cross_entropy(predictions):
+    """Hard-label evaluation CE; no augmentation, Mixup or target smoothing."""
+    logits = np.asarray(predictions['logits'], dtype=np.float64)
+    labels = predictions['y_true']
+    shifted = logits - logits.max(axis=1, keepdims=True)
+    return float((np.log(np.exp(shifted).sum(axis=1)) - shifted[np.arange(len(labels)), labels]).mean())
+
+
 def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=None):
     model.train()
     accumulation = cfg['gradient_accumulation']
@@ -133,12 +158,20 @@ def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=No
     batches = progress_batches(loader, 'Training', cfg.get('progress_bar', True))
     for step, (inputs, targets, _) in enumerate(batches):
         inputs, targets = to_device(inputs, device), to_device(targets, device)
+        alpha = cfg.get('mixup_alpha', 0.0)
+        if alpha and getattr(criterion, 'attribute_lambda', 0) > 0:
+            raise ValueError('Mixup currently supports diagnosis-only training')
+        inputs, targets_a, targets_b, lam = mixup_inputs(inputs, targets, alpha)
         batch_size = len(targets['diagnosis'])
         window_start = (step // accumulation) * accumulation * loader.batch_size
         window_samples = min(accumulation * loader.batch_size, len(loader.dataset) - window_start)
         with torch.autocast(device_type=device.type, enabled=scaler.is_enabled()):
             output = model(**inputs)
-            losses = criterion(output, targets)
+            losses = criterion(output, targets_a)
+            if lam != 1.0:
+                other_losses = criterion(output, targets_b)
+                losses = {key: lam * value + (1 - lam) * other_losses[key]
+                          for key, value in losses.items()}
             loss = losses['total'] * (batch_size / window_samples)
         if not all(torch.isfinite(value).all() for value in losses.values()):
             raise FloatingPointError('Non-finite loss; stopping without a complete artifact')
@@ -146,7 +179,9 @@ def train_epoch(model, loader, optimizer, criterion, device, scaler, cfg, ema=No
         for key in totals:
             totals[key] += float(losses[key].detach()) * batch_size
         samples += batch_size
-        correct += int((output['diagnosis_logits'].detach().argmax(1) == targets['diagnosis']).sum())
+        predicted = output['diagnosis_logits'].detach().argmax(1)
+        correct += lam * int((predicted == targets_a['diagnosis']).sum())
+        correct += (1 - lam) * int((predicted == targets_b['diagnosis']).sum())
         if (step + 1) % accumulation == 0 or step + 1 == len(loader):
             scaler.unscale_(optimizer)
             gradients_finite = all(torch.isfinite(p.grad).all().item()

@@ -21,3 +21,5 @@ dev_cv5 只允许 development，不能直接改为 frozen，也不能用CV check
 Albumentations每次训练调用的内部seed从已保存的Python RNG派生，DataLoader worker继续由torch.initial_seed初始化Python/NumPy；验证不消耗全局增强RNG。persistent_workers固定false，避免跨epoch保留未保存的worker增强状态。环境记录包含Albumentations、albucore、OpenCV headless及tqdm版本；进度条仅在终端显示，后台日志保留逐轮统计。
 
 当前尚未实现：refit、配对bootstrap、TTA、模型集成、决策调整、空间attention、源V2复现与候选机制。不要将基础设施测试分数写入研究结果。
+
+2026-10-11新增seed42双模态正则化开发候选：服务器profile=b04_regularized，B04×5折，dropout0.5、Mixup alpha0.2、EMA decay0.99，其余默认训练预算与首轮一致。默认基线仍为dropout0/Mixup0/EMA0.999。新候选仅使用训练图像和诊断CE，目标在当前训练折内混合；heldout只评价，不用于Mixup。开启逐轮Regular/EMA验证及训练分区固定预处理Regular诊断，Mixup训练命中率和clean评价分开记录。保持固定末轮协议，不采用旧项目验证阈值拟合/最佳轮选择；组合参数优化属于开发探索，不能作单因素机制证据。

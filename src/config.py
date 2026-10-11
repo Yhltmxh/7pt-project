@@ -281,6 +281,9 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
             raise ConfigError(f"model.{field} is not implemented in the baseline release")
     _one_of(model["refinement"], ("none",), "model.refinement")
     _number(model["layer_scale_init"], "model.layer_scale_init", minimum=0)
+    _number(model["head_dropout"], "model.head_dropout", minimum=0, maximum=1)
+    if model["head_dropout"] >= 1:
+        raise ConfigError("model.head_dropout must be smaller than 1")
     if model["mechanism"] != {"name": "none", "parameters": {}}:
         raise ConfigError("Mechanisms are not implemented; mechanism must remain disabled")
     _one_of(loss["diagnosis"], ("cross_entropy",), "loss.diagnosis")
@@ -306,6 +309,7 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
     for field in ("backbone_learning_rate", "head_learning_rate", "min_learning_rate", "max_grad_norm"):
         _number(train[field], f"train.{field}", positive=True)
     _number(train["weight_decay"], "train.weight_decay", minimum=0)
+    _number(train["mixup_alpha"], "train.mixup_alpha", minimum=0)
     _number(train["warmup_epochs"], "train.warmup_epochs", integer=True, minimum=0)
     if train["epochs"] is not None and train["warmup_epochs"] >= train["epochs"]:
         raise ConfigError("train.warmup_epochs must be smaller than train.epochs")
@@ -319,6 +323,10 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
     if train["ema"]["decay"] >= 1:
         raise ConfigError("train.ema.decay must be smaller than 1")
     _one_of(evaluation["main_metric"], ("diagnosis_macro_f1",), "evaluation.main_metric")
+    for field in ("track_regular", "track_train"):
+        _boolean(evaluation[field], f"evaluation.{field}")
+    if evaluation["track_train"] and not evaluation["track_regular"]:
+        raise ConfigError("evaluation.track_train requires track_regular for comparable diagnostics")
     _one_of(evaluation["decision_rule"], ("argmax",), "evaluation.decision_rule")
     _one_of(evaluation["checkpoint_type"], ("ema", "regular"), "evaluation.checkpoint_type")
     if evaluation["checkpoint_type"] == "ema" and not train["ema"]["enabled"]:
