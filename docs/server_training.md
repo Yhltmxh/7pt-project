@@ -1,5 +1,17 @@
 # Linux 服务器一键启动开发基线
 
+## 当前 CB Focal 开发候选
+
+激活dlenv后，在项目根目录启动B04、seed42、固定五折，共5次训练：
+
+```bash
+bash scripts/train_server.sh --python python --data-root data/derm7pt --profile b04_cb_focal --offline
+```
+
+参数为CB Focal beta0.99/gamma2、head dropout0.2、Mixup0、EMA0.99、25轮、batch16、梯度累积1。仅训练图像和诊断标签，类别权重来自各折训练病例并归一化到平均1，实际权重写入provenance。固定split_seed20261004，逐轮保存Regular/EMA heldout指标及clean训练诊断；主结果仍固定末轮EMA、argmax、无TTA，test封存。训练loss为CB Focal；验证/clean诊断loss为普通硬标签CE，不能把两种loss直接作训练验证差距。
+
+入口自动新建作业；追加`--dry-run`仅看5次计划，追加`--preflight-only`只检查环境/数据/缓存。`--offline`要求已有预训练缓存。此前`b04_regularized`保留CE/dropout0.5/Mixup0.2；新源码/配置不恢复旧作业checkpoint。无需增加依赖。实际性能须在服务器训练后与相同seed/folds的结果比较，此次是组合调整，不作单因素结论。
+
 ## 导出分析文件
 
 在项目根目录执行 `bash scripts/export_results.sh`，自动选择最近完成的服务器作业；也可用 `bash scripts/export_results.sh --job-dir outputs/server/<job>` 指定项目相对路径。只依赖Python标准库，默认打包日志、配置、环境、历史曲线、逐折Regular/EMA指标和预测、数据清单、套件汇总及OOF，跳过checkpoint权重；不包含项目外原始图像。压缩包保存在 `outputs/exports/`，内部文件名全部为项目相对路径，原JSON内容及历史绝对路径保持原样，并附文件SHA256清单。

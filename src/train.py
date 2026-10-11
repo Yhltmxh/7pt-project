@@ -291,6 +291,11 @@ def run_training(cfg, seed, output_dir=None, resume=None, stop_after_epoch=None)
             'training_sample_ids': list(train_loader.dataset.sample_ids),
             'validation_sample_ids': list(valid_loader.dataset.sample_ids),
             'class_counts_source': 'current_training_partition_only', 'class_counts': counts,
+            'diagnosis_loss': cfg['loss']['diagnosis'],
+            'diagnosis_class_weights': (criterion.diagnosis_loss.alpha.detach().cpu().tolist()
+                if cfg['loss']['diagnosis'] == 'cb_focal' else None),
+            'diagnosis_class_weight_normalization': ('mean_one'
+                if cfg['loss']['diagnosis'] == 'cb_focal' else 'unweighted'),
             'pretrained_id': cfg['model']['pretrained_id'], 'initial_model_hash': initial_hash,
             'device': str(device), 'gpu': torch.cuda.get_device_name(device) if device.type == 'cuda' else None,
             'amp_initial_scale': 1024.,

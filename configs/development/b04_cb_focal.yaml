@@ -1,0 +1,25 @@
+# Development candidate following seed42 B04 diagnostics; not formal evidence.
+# Class weights come only from the current fold's training cases; mean weight=1.
+stage: development
+experiment:
+  id: B04
+  seeds: [42]
+model:
+  modalities: [clinical, dermoscopic]
+  fusion: mean
+  head_dropout: 0.2
+loss:
+  diagnosis: cb_focal
+  cb_beta: 0.99
+  focal_gamma: 2.0
+train:
+  epochs: 25
+  warmup_epochs: 5
+  batch_size: 16
+  gradient_accumulation: 1
+  mixup_alpha: 0.0
+  ema:
+    decay: 0.99
+evaluation:
+  track_regular: true
+  track_train: true

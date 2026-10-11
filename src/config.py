@@ -286,9 +286,16 @@ def validate_config(cfg: dict, require_ready: bool = False) -> None:
         raise ConfigError("model.head_dropout must be smaller than 1")
     if model["mechanism"] != {"name": "none", "parameters": {}}:
         raise ConfigError("Mechanisms are not implemented; mechanism must remain disabled")
-    _one_of(loss["diagnosis"], ("cross_entropy",), "loss.diagnosis")
+    _one_of(loss["diagnosis"], ("cross_entropy", "cb_focal"), "loss.diagnosis")
     _one_of(loss["class_weights_source"], ("train_partition_only",), "loss.class_weights_source")
-    if loss["focal_gamma"] is not None or loss["cb_beta"] is not None:
+    if loss["diagnosis"] == "cb_focal":
+        if cfg["stage"] != "development":
+            raise ConfigError("CB Focal is currently supported only for development candidates")
+        _number(loss["cb_beta"], "loss.cb_beta", minimum=0, maximum=1)
+        if loss["cb_beta"] >= 1:
+            raise ConfigError("loss.cb_beta must be smaller than 1")
+        _number(loss["focal_gamma"], "loss.focal_gamma", minimum=0)
+    elif loss["focal_gamma"] is not None or loss["cb_beta"] is not None:
         raise ConfigError("Focal parameters are unsupported by the cross entropy baseline")
     _one_of(loss["attribute_type"], ("categorical_cross_entropy",), "loss.attribute_type")
     _one_of(loss["attribute_reduction"], ("mean_valid_tasks",), "loss.attribute_reduction")

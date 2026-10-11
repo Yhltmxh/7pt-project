@@ -2,7 +2,7 @@
 
 诊断类别顺序：BCC、NEV、MEL、MISC、SK。原 CSV 的零基行号先关联官方 indexes，再生成清单；筛选和重排不得重新编号。按病例/病灶审计，不将 case_num、case_id 宣称为患者身份。
 
-支持 official_holdout 和开发 dev_cv5。官方留出用 train 训练、valid 观察；开发五折只在官方 train＋valid 内重新分折，原始 official_split 和行号始终保留，test 封存。所有对照共用图像预处理、增强、训练预算、CE 和 EMA。当前开发起点参考ISIC2025，图像尺寸224、Albumentations双模态共享几何及外观增强、ImageNet normalization；具体概率和强度写入configs/base.yaml，来源及适配见docs/isic2025_reference.md。两幅图未配准，共享增强不证明真实空间对应。验证/推理仅固定缩放及标准化，无随机增强。旧flips/none模式仍可显式选择，要求appearance_coupling=none；切换模式创建新配置身份，不续用原checkpoint。
+支持 official_holdout 和开发 dev_cv5。官方留出用 train 训练、valid 观察；开发五折只在官方 train＋valid 内重新分折，原始 official_split 和行号始终保留，test 封存。默认公共基线对照共用图像预处理、增强、训练预算、CE 和 EMA；改变损失的开发候选单独记录配置身份。当前开发起点参考ISIC2025，图像尺寸224、Albumentations双模态共享几何及外观增强、ImageNet normalization；具体概率和强度写入configs/base.yaml，来源及适配见docs/isic2025_reference.md。两幅图未配准，共享增强不证明真实空间对应。验证/推理仅固定缩放及标准化，无随机增强。旧flips/none模式仍可显式选择，要求appearance_coupling=none；切换模式创建新配置身份，不续用原checkpoint。
 
 当前首轮五折使用 training seed 42、固定 split_seed 20261004，B01/B02/B04 共15次运行。训练种子与划分种子独立；补训练种子时不重划折。病例/已核验病灶整体分折，尚未核验患者身份，不宣称患者互斥。616例开发池按五类分层，每折训练492或493例、验证123或124例。folds.csv 保留 sample_id、lesion_id、source_row_index、dev_fold，不给test分折；启动时检查完整覆盖、组内一致、跨折精确重复和固定seed重算一致。
 
@@ -23,3 +23,5 @@ Albumentations每次训练调用的内部seed从已保存的Python RNG派生，D
 当前尚未实现：refit、配对bootstrap、TTA、模型集成、决策调整、空间attention、源V2复现与候选机制。不要将基础设施测试分数写入研究结果。
 
 2026-10-11新增seed42双模态正则化开发候选：服务器profile=b04_regularized，B04×5折，dropout0.5、Mixup alpha0.2、EMA decay0.99，其余默认训练预算与首轮一致。默认基线仍为dropout0/Mixup0/EMA0.999。新候选仅使用训练图像和诊断CE，目标在当前训练折内混合；heldout只评价，不用于Mixup。开启逐轮Regular/EMA验证及训练分区固定预处理Regular诊断，Mixup训练命中率和clean评价分开记录。保持固定末轮协议，不采用旧项目验证阈值拟合/最佳轮选择；组合参数优化属于开发探索，不能作单因素机制证据。
+
+2026-10-11新增用户指定的CB Focal候选：服务器profile=b04_cb_focal，B04×seed42×固定五折，beta0.99、gamma2、dropout0.2、Mixup0、EMA0.99，25轮、batch16、梯度累积1。仅development允许配置CB Focal；beta须在[0,1)、gamma非负且均为显式有限数值。有效样本数权重只来自当前训练折，归一化为平均1；保存固定类别顺序下的实际权重、训练计数和配置/源码身份。默认CE不使用类别权重且拒绝残留focal参数。训练loss为CB Focal，所有验证及clean训练诊断loss继续为无权重硬标签CE；主结果仍固定末轮EMA/argmax/无TTA。此组合不能单独归因于某项改动，需服务器真实训练后评价；属性/元数据输入仍关闭，test封存，不跨旧作业resume。

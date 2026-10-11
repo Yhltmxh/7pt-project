@@ -29,6 +29,11 @@ DEFAULTS = {
 CV_DEFAULTS = {**DEFAULTS, "protocol": "dev_cv5", "only": ["B01", "B02", "B04"], "seeds": [42]}
 REGULARIZED_DEFAULTS = {**CV_DEFAULTS, "only": ["B04"], "batch_size": 16,
                         "gradient_accumulation": 1, "profile": "b04_regularized"}
+CB_FOCAL_DEFAULTS = {**REGULARIZED_DEFAULTS, "profile": "b04_cb_focal"}
+PROFILE_CONFIGS = {
+    "b04_regularized": "configs/development/b04_regularized.yaml",
+    "b04_cb_focal": "configs/development/b04_cb_focal.yaml",
+}
 SETTING_KEYS = set(DEFAULTS) | {"data_root"}
 GIB = 1024 ** 3
 
@@ -45,8 +50,8 @@ def parser():
                    help="CV defaults: B01/B02/B04 x five fixed folds, training seed 42")
     p.add_argument("--split-seed", type=int, help="Fixed CV partition seed, independent of training seeds; default 20261004")
     p.add_argument("--only", nargs="+", choices=DEFAULTS["only"])
-    p.add_argument("--profile", choices=("baseline", "b04_regularized"),
-                   help="b04_regularized: only B04, seed 42, fixed development five folds; Mixup/dropout/EMA diagnostics")
+    p.add_argument("--profile", choices=("baseline", *PROFILE_CONFIGS),
+                   help="B04 profiles: seed 42, fixed five folds; b04_cb_focal uses CB Focal, no Mixup, dropout 0.2")
     p.add_argument("--seeds", nargs="+", type=int)
     for name in ("epochs", "warmup_epochs", "batch_size", "gradient_accumulation", "num_workers"):
         p.add_argument("--" + name.replace("_", "-"), type=int)
@@ -121,15 +126,16 @@ def _resolve_job(args):
     root = args.data_root or os.environ.get("DERM7PT_ROOT")
     if not root:
         raise ConfigError("Set --data-root /path/to/derm7pt or DERM7PT_ROOT")
-    defaults = (REGULARIZED_DEFAULTS if args.profile == "b04_regularized" else
+    defaults = (CB_FOCAL_DEFAULTS if args.profile == "b04_cb_focal" else
+                REGULARIZED_DEFAULTS if args.profile == "b04_regularized" else
                 CV_DEFAULTS if args.protocol == "dev_cv5" else DEFAULTS)
     settings = {key: getattr(args, key) if getattr(args, key) is not None else value
                 for key, value in defaults.items()}
     settings["data_root"] = str(_absolute(root))
-    if settings['profile'] == 'b04_regularized' and (settings['only'] != ['B04']
+    if settings['profile'] in PROFILE_CONFIGS and (settings['only'] != ['B04']
             or settings['seeds'] != [42] or settings['protocol'] != 'dev_cv5'
             or settings['split_seed'] != 20261004):
-        raise ConfigError('b04_regularized requires only B04, seed 42, dev_cv5, split_seed 20261004')
+        raise ConfigError(f"{settings['profile']} requires only B04, seed 42, dev_cv5, split_seed 20261004")
     if len(set(settings["only"])) != len(settings["only"]):
         raise ConfigError("--only must contain unique baseline IDs")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -137,8 +143,8 @@ def _resolve_job(args):
     if job_dir.exists():
         raise ConfigError(f"Job directory already exists: {job_dir}; use --resume or a new directory")
     suite = read_yaml(PROJECT_ROOT / "configs/experiments/baselines.yaml")
-    if settings['profile'] == 'b04_regularized':
-        suite['base_config'] = 'configs/development/b04_regularized.yaml'
+    if settings['profile'] in PROFILE_CONFIGS:
+        suite['base_config'] = PROFILE_CONFIGS[settings['profile']]
     if settings["protocol"] == "dev_cv5":
         suite["protocol_config"] = "configs/protocols/dev_cv5.yaml"
     suite["suite_id"] = "server_" + uuid.uuid4().hex

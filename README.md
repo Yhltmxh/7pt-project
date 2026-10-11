@@ -14,7 +14,7 @@
 
 研究骨干使用 `torchvision` ConvNeXt-Base；预训练标识为 `ConvNeXt_Base_Weights.IMAGENET1K_V1`。单模态不构造另一分支。五类顺序固定为 BCC、NEV、MEL、MISC、SK。默认使用 CE、固定末轮权重、EMA、argmax、无 TTA；没有元数据输入、属性监督或创新机制。`tiny_cnn` 专用于合成流程测试，正式配置禁止使用。
 
-模型层预留七项分类属性头、masked CE 和 CB Focal 的实现及契约测试；首版配置入口暂时禁止开启，避免把未经实验确认的选项混进基线。已接入开发五折与 pooled OOF；空间交叉注意力、源 V2 迁移、refit、B03 概率融合和候选研究机制列为后续阶段。
+CB Focal已接入独立development候选，默认公共基线仍为CE；七项分类属性头和masked CE只在模块层预留，配置入口继续禁用。已接入开发五折与 pooled OOF；空间交叉注意力、源 V2 迁移、refit、B03 概率融合和候选研究机制列为后续阶段。
 
 基础配置已参考ISIC2025：Pillow读取RGB，Albumentations 2.0.8执行双模态共享几何及外观增强，训练/验证支持tqdm进度条；学习率、AdamW、warmup/cosine、EMA和梯度裁剪保持统一。增强参数全部写入configs/base.yaml；验证只缩放和标准化。来源版本、迁移差异及完整参数对照见 [基础配置参考](docs/isic2025_reference.md)。这组设置用于首轮开发五折；后续正则化候选以独立profile运行，不能将开发结果当成正式性能证据。
 
@@ -118,10 +118,12 @@ python scripts/collect_results.py --suite-id derm7pt_baseline_v1
 
 ## 当前 seed 42 双模态开发训练
 
-首轮B01/B02/B04的seed42五折已完成本地预测分析。下一轮仅训练B04五折，使用新作业和独立配置身份：
+两轮seed42五折结果已完成本地预测分析。当前候选仅训练B04五折，使用CB Focal、关闭Mixup、降低head dropout：
 
 ```bash
-bash scripts/train_server.sh --data-root data/derm7pt --profile b04_regularized --offline
+bash scripts/train_server.sh --python python --data-root data/derm7pt --profile b04_cb_focal --offline
 ```
 
-默认25轮、batch16、梯度累积1，head dropout0.5、同步双模态Mixup0.2、EMA0.99；逐轮记录Regular验证和固定预处理训练集指标。无新增依赖。该候选是尚待训练验证的开发方案，来源与旧结果可比性限制见[旧Derm7pt参考](docs/derm7pt_reference.md)。test继续封存，不续用首轮checkpoint。
+默认25轮、batch16、梯度累积1；CB Focal beta0.99/gamma2、head dropout0.2、Mixup0、EMA0.99。类别权重只用当前折训练病例计算，归一化至平均1，并写入provenance。逐轮记录Regular/EMA验证和固定预处理训练集指标；验证loss继续为普通硬标签CE，用于跨轮比较，训练loss则为CB Focal。无新增依赖，test继续封存；新候选须新建作业，不续用此前checkpoint。
+
+`b04_regularized`保留此前CE/dropout0.5/Mixup0.2组合配置。新候选同时改变损失、Mixup和dropout，属于开发组合调整，实际效果待服务器训练验证。参数与运行方式见[服务器训练说明](docs/server_training.md)。

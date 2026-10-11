@@ -162,3 +162,11 @@ scripts/export_results.sh只使用Bash及Python标准库，自动选择最近完
 CPU Python3.12 / torch2.8.0+cpu验证：`python -m pytest -q` 215 passed、26条multiprocessing/fork弃用警告；默认合成CPU smoke通过；baseline dry-run通过；新profile dry-run核验恰好B04×seed42×五折共5次，无benchmark训练。新增专项测试覆盖双图同排列同lambda、singleton、RNG重放、非法参数、扩大运行范围拒绝，以及启用Mixup/dropout/诊断后的Regular/EMA逐参数精确恢复。首次pytest误采集只读参考仓库的旧测试，随后用pytest.ini将项目默认发现范围限定为tests，重新完整通过。
 
 日志位于outputs/validation/regularized_seed42（不纳入Git）。本机未验证RTX5090真实双ConvNeXt训练、显存容量或新候选性能；合成分数不是研究证据。没有评价test、修改原训练输出或启动服务器训练。
+
+## 2026-10-11 seed42 CB Focal 开发候选
+
+按用户要求新增`b04_cb_focal`服务器profile：B04、seed42、固定split_seed20261004五折；CB Focal beta0.99/gamma2、Mixup0、dropout0.2、EMA0.99、25轮、batch16/梯度累积1。CB Focal仅允许development，严格检查显式有限参数；公共默认CE配置保持原值。训练从当前训练折取计数，记录实际平均权重1的alpha；验证/clean诊断仍计算无权重硬标签CE。源码/配置身份变化拒绝旧checkpoint复用。
+
+CPU Python3.12 / torch2.8.0+cpu验证：全量pytest **230 passed**、26条既有multiprocessing/fork弃用警告；专项23项通过；默认CPU合成smoke通过；默认baseline dry-run15项及新profile dry-run5项通过。新增检查使用不平衡合成五折，核验实际CB Focal调用仅接收当折训练计数、权重均值1、Mixup关闭、Regular/EMA与历史精确恢复、硬标签CE评价，以及改回CE时在写入前拒绝不兼容checkpoint。参数非法、非development配置及扩展新profile种子/折范围均拒绝。没有新增依赖。
+
+日志、JUnit和计划核验位于outputs/validation/cb_focal_seed42；默认smoke报告位于outputs/smoke_cb_focal_cpu/report.json。未启动真实Derm7pt/服务器训练、下载预训练权重或评价test；未验证RTX5090上的新候选性能，合成结果仅作为工程验证。
